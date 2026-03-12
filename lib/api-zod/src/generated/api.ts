@@ -41,6 +41,7 @@ export const ListUsersResponseItem = zod.object({
   rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
   storeBranchCode: zod.string(),
   isActive: zod.boolean(),
+  createdAt: zod.date(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
 
@@ -73,6 +74,7 @@ export const UpdateUserResponse = zod.object({
   rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
   storeBranchCode: zod.string(),
   isActive: zod.boolean(),
+  createdAt: zod.date(),
 });
 
 /**

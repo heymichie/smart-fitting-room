@@ -17,4 +17,5 @@ export interface User {
   rights: UserRights;
   storeBranchCode: string;
   isActive: boolean;
+  createdAt: Date;
 }

@@ -52,6 +52,7 @@ export interface User {
   rights: UserRights;
   storeBranchCode: string;
   isActive: boolean;
+  createdAt: string;
 }
 
 export type CreateUserRequestRights =

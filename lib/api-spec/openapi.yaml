@@ -262,6 +262,9 @@ components:
           type: string
         isActive:
           type: boolean
+        createdAt:
+          type: string
+          format: date-time
       required:
         - id
         - userId
@@ -272,6 +275,7 @@ components:
         - rights
         - storeBranchCode
         - isActive
+        - createdAt
     CreateUserRequest:
       type: object
       properties:
