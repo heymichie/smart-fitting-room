@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 // Pages
 import AdminSetup from "@/pages/admin-setup";
 import SetupComplete from "@/pages/setup-complete";
+import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -23,6 +24,7 @@ function Router() {
       {/* Root route points to the Administrator Setup page */}
       <Route path="/" component={AdminSetup} />
       <Route path="/setup-complete" component={SetupComplete} />
+      <Route path="/login" component={Login} />
       
       {/* Fallback 404 */}
       <Route component={NotFound} />
