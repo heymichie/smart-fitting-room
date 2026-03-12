@@ -1,0 +1,14 @@
+packages:
+  "framer-motion": "Smooth page transitions and staggered entrance animations for form fields"
+  "@hookform/resolvers": "Zod validation for the complex setup form"
+  "clsx": "Utility for conditionally joining classNames"
+  "tailwind-merge": "Utility for merging tailwind classes safely"
+
+images:
+  - path: "artifacts/smart-fitting-room/public/images/bg-texture.png"
+    description: "Subtle, bright, minimal light grey frosted glass or soft retail store background, out of focus, high key"
+    aspect_ratio: "16:9"
+
+notes:
+  - Using generated hooks from @workspace/api-client-react directly in the components.
+  - The form checks GET /api/admin/setup on load and blocks access if setupComplete is true.

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Smart Fitting Room"
+version = "1.0.0"
+id = "artifacts/smart-fitting-room"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 22258
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/smart-fitting-room run dev"
+
+[services.env]
+PORT = "22258"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/smart-fitting-room", "run", "build"]
+publicDir = "artifacts/smart-fitting-room/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

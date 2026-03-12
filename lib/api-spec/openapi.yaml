@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Smart Fitting Room Management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: admin
+    description: Administrator setup operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /admin/setup:
+    post:
+      operationId: createAdminSetup
+      tags: [admin]
+      summary: Create administrator setup
+      description: Creates the initial administrator account and organisation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminSetupRequest"
+      responses:
+        "201":
+          description: Administrator created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSetupResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Admin already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getAdminSetupStatus
+      tags: [admin]
+      summary: Check if admin setup has been completed
+      responses:
+        "200":
+          description: Setup status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSetupStatus"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +76,70 @@ components:
           type: string
       required:
         - status
-
+    AdminSetupRequest:
+      type: object
+      properties:
+        organisationTradingName:
+          type: string
+        administratorForenames:
+          type: string
+        surname:
+          type: string
+        designation:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        retypePassword:
+          type: string
+        productCode:
+          type: string
+      required:
+        - organisationTradingName
+        - administratorForenames
+        - surname
+        - designation
+        - username
+        - password
+        - retypePassword
+        - productCode
+    AdminSetupResponse:
+      type: object
+      properties:
+        organisationalId:
+          type: string
+        organisationTradingName:
+          type: string
+        administratorForenames:
+          type: string
+        surname:
+          type: string
+        designation:
+          type: string
+        username:
+          type: string
+        message:
+          type: string
+      required:
+        - organisationalId
+        - organisationTradingName
+        - administratorForenames
+        - surname
+        - designation
+        - username
+        - message
+    AdminSetupStatus:
+      type: object
+      properties:
+        setupComplete:
+          type: boolean
+      required:
+        - setupComplete
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
