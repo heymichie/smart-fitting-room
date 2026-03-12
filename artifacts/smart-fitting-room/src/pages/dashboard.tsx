@@ -9,9 +9,39 @@ interface AdminUser {
   designation: string;
 }
 
+function useLiveClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function formatDate(d: Date) {
+  const day = String(d.getDate()).padStart(2, "0");
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const month = months[d.getMonth()];
+  const year = String(d.getFullYear()).slice(2);
+  return `${day}-${month}-${year}`;
+}
+
+function formatTime(d: Date) {
+  return `${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+const menuItems = [
+  { label: "Create New Account", path: "/create-account" },
+  { label: "Manage Accounts",    path: "/manage-accounts" },
+  { label: "Reports",            path: "/reports" },
+  { label: "User Rights",        path: "/user-rights" },
+  { label: "Setup Fitting Rooms",path: "/setup-fitting-rooms" },
+];
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [admin, setAdmin] = useState<AdminUser | null>(null);
+  const now = useLiveClock();
 
   useEffect(() => {
     const token = localStorage.getItem("sfr_admin_token");
@@ -36,40 +66,75 @@ export default function Dashboard() {
   if (!admin) return null;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Top bar */}
-      <header className="bg-[#1a3a6b] text-white px-8 py-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-3">
-          <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-white">
-            <path d="M36 9C32.134 9 29 12.134 29 16C29 19.076 30.981 21.685 33.749 22.643C34.065 23.131 34.463 23.683 34.966 24.344C29.244 26.685 9 35.5 9 46H63C63 35.5 42.756 26.685 37.034 24.344C37.537 23.683 37.935 23.131 38.251 22.643C41.019 21.685 43 19.076 43 16C43 12.134 39.866 9 36 9Z" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-            <rect x="30" y="15" width="12" height="8" rx="1.5" fill="white" opacity="0.95" />
-            <line x1="16" y1="46" x2="16" y2="58" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
-            <line x1="56" y1="46" x2="56" y2="58" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
-          </svg>
-          <span className="font-semibold text-lg">Smart Fitting Room</span>
-        </div>
+    <div
+      className="min-h-screen w-full flex flex-col"
+      style={{ backgroundColor: "#1e3f7a" }}
+    >
+      {/* ── Header ── */}
+      <header className="flex items-start justify-between px-8 pt-6 pb-2">
+        {/* Left: icon + welcome */}
         <div className="flex items-center gap-4">
-          <span className="text-white/80 text-sm">
-            {admin.administratorForenames} {admin.surname} &mdash; {admin.designation}
-          </span>
+          {/* Hanger icon */}
+          <svg
+            viewBox="0 0 72 72"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-14 h-14 shrink-0"
+          >
+            <path
+              d="M36 6C31.582 6 28 9.582 28 14C28 17.535 30.166 20.553 33.249 21.767C33.595 22.298 34.048 22.911 34.621 23.641C28.292 26.289 6 36.5 6 50H66C66 36.5 43.708 26.289 37.379 23.641C37.952 22.911 38.405 22.298 38.751 21.767C41.834 20.553 44 17.535 44 14C44 9.582 40.418 6 36 6Z"
+              stroke="white"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Tag box */}
+            <rect x="29" y="13" width="14" height="9" rx="2" fill="white" opacity="0.95" />
+            {/* Bottom legs */}
+            <line x1="14" y1="50" x2="14" y2="63" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
+            <line x1="58" y1="50" x2="58" y2="63" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
+          </svg>
+
+          <div>
+            <h1 className="text-white font-bold leading-tight" style={{ fontSize: "clamp(1.6rem, 4vw, 2.6rem)" }}>
+              Welcome ({admin.username})
+            </h1>
+            <p className="text-white/60 text-sm mt-0.5">Home/Administrator</p>
+          </div>
+        </div>
+
+        {/* Right: logout + clock */}
+        <div className="flex flex-col items-end gap-0.5 pt-1">
           <button
             onClick={handleLogout}
-            className="text-white/70 hover:text-white text-sm border border-white/30 hover:border-white/60 rounded-lg px-3 py-1.5 transition"
+            className="text-white font-extrabold text-base tracking-widest hover:text-white/70 transition uppercase"
           >
-            Logout
+            LOGOUT
           </button>
+          <span className="text-white/70 text-sm">
+            {formatDate(now)}: {formatTime(now)}
+          </span>
         </div>
       </header>
 
-      {/* Body */}
-      <main className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
-        <h1 className="text-2xl font-bold text-foreground">
-          Welcome, {admin.administratorForenames}!
-        </h1>
-        <p className="text-muted-foreground text-center max-w-md">
-          You are logged in as the administrator for <strong>{admin.organisationTradingName}</strong>.
-          The dashboard is being built — more features coming soon.
-        </p>
+      {/* ── Menu grid ── */}
+      <main className="flex-1 flex items-center justify-center px-10 pb-10">
+        <div className="w-full max-w-5xl grid grid-cols-3 gap-6">
+          {menuItems.map((item) => (
+            <button
+              key={item.label}
+              onClick={() => setLocation(item.path)}
+              className="rounded-2xl flex items-center justify-center text-center text-gray-700 font-semibold text-lg transition hover:brightness-95 active:scale-[0.98] shadow-sm"
+              style={{
+                backgroundColor: "#dde3ec",
+                minHeight: "120px",
+                padding: "2rem 1.5rem",
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </main>
     </div>
   );
