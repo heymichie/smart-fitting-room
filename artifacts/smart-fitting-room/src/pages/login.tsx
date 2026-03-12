@@ -1,13 +1,37 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
+import { useAdminLogin } from "@workspace/api-client-react";
 
 export default function Login() {
+  const [, setLocation] = useLocation();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const { mutate: login, isPending } = useAdminLogin({
+    mutation: {
+      onSuccess: (data) => {
+        localStorage.setItem("sfr_admin_token", data.token);
+        localStorage.setItem("sfr_admin_user", JSON.stringify({
+          username: data.username,
+          organisationTradingName: data.organisationTradingName,
+          administratorForenames: data.administratorForenames,
+          surname: data.surname,
+          designation: data.designation,
+        }));
+        setLocation("/dashboard");
+      },
+      onError: (error: any) => {
+        setErrorMsg(error?.data?.error ?? "Invalid username or password");
+      },
+    },
+  });
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Login logic will go here
+    setErrorMsg("");
+    login({ data: { username, password } });
   };
 
   return (
@@ -33,7 +57,6 @@ export default function Login() {
         >
           {/* Brand */}
           <div className="flex flex-col items-start gap-3">
-            {/* Hanger icon */}
             <div className="relative">
               <svg
                 viewBox="0 0 72 72"
@@ -48,9 +71,7 @@ export default function Login() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-                {/* Tag/label box */}
                 <rect x="30" y="15" width="12" height="8" rx="1.5" fill="white" opacity="0.95" />
-                {/* Legs */}
                 <line x1="16" y1="46" x2="16" y2="58" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
                 <line x1="56" y1="46" x2="56" y2="58" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
               </svg>
@@ -80,8 +101,9 @@ export default function Login() {
               type="text"
               placeholder="Username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => { setUsername(e.target.value); setErrorMsg(""); }}
               className="w-full rounded-xl border border-gray-300 bg-white/70 px-4 py-3 text-center text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400 transition"
+              autoComplete="username"
               required
             />
 
@@ -91,8 +113,9 @@ export default function Login() {
                 type="password"
                 placeholder="Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setErrorMsg(""); }}
                 className="w-full rounded-xl border border-gray-300 bg-white/70 px-4 py-3 text-center text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400 transition"
+                autoComplete="current-password"
                 required
               />
               <div className="flex justify-end">
@@ -105,13 +128,25 @@ export default function Login() {
               </div>
             </div>
 
+            {/* Error message */}
+            {errorMsg && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-red-600 text-xs text-center bg-red-50 border border-red-200 rounded-lg px-3 py-2"
+              >
+                {errorMsg}
+              </motion.p>
+            )}
+
             {/* Login button */}
             <button
               type="submit"
-              className="w-full rounded-xl py-3 text-white font-semibold text-sm tracking-wide transition hover:opacity-90 active:scale-[0.98] mt-1"
+              disabled={isPending}
+              className="w-full rounded-xl py-3 text-white font-semibold text-sm tracking-wide transition hover:opacity-90 active:scale-[0.98] mt-1 disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ backgroundColor: "rgba(26, 58, 107, 0.95)" }}
             >
-              Login
+              {isPending ? "Logging in…" : "Login"}
             </button>
           </form>
         </motion.div>

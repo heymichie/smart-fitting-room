@@ -25,6 +25,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [admin]
+      summary: Administrator login
+      description: Validates administrator credentials and returns a session token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLoginResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Setup not complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/setup:
     post:
       operationId: createAdminSetup
@@ -136,6 +167,38 @@ components:
           type: boolean
       required:
         - setupComplete
+    AdminLoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+    AdminLoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        username:
+          type: string
+        organisationTradingName:
+          type: string
+        administratorForenames:
+          type: string
+        surname:
+          type: string
+        designation:
+          type: string
+      required:
+        - token
+        - username
+        - organisationTradingName
+        - administratorForenames
+        - surname
+        - designation
     ErrorResponse:
       type: object
       properties:

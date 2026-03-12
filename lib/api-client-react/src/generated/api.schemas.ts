@@ -34,6 +34,20 @@ export interface AdminSetupStatus {
   setupComplete: boolean;
 }
 
+export interface AdminLoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface AdminLoginResponse {
+  token: string;
+  username: string;
+  organisationTradingName: string;
+  administratorForenames: string;
+  surname: string;
+  designation: string;
+}
+
 export interface ErrorResponse {
   error: string;
 }

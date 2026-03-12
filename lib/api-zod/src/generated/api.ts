@@ -16,6 +16,24 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * Validates administrator credentials and returns a session token
+ * @summary Administrator login
+ */
+export const AdminLoginBody = zod.object({
+  username: zod.string(),
+  password: zod.string(),
+});
+
+export const AdminLoginResponse = zod.object({
+  token: zod.string(),
+  username: zod.string(),
+  organisationTradingName: zod.string(),
+  administratorForenames: zod.string(),
+  surname: zod.string(),
+  designation: zod.string(),
+});
+
+/**
  * Creates the initial administrator account and organisation
  * @summary Create administrator setup
  */
