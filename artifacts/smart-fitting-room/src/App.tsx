@@ -8,6 +8,7 @@ import AdminSetup from "@/pages/admin-setup";
 import SetupComplete from "@/pages/setup-complete";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
+import CreateAccount from "@/pages/create-account";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -27,7 +28,8 @@ function Router() {
       <Route path="/setup-complete" component={SetupComplete} />
       <Route path="/login" component={Login} />
       <Route path="/dashboard" component={Dashboard} />
-      
+      <Route path="/create-account" component={CreateAccount} />
+
       {/* Fallback 404 */}
       <Route component={NotFound} />
     </Switch>

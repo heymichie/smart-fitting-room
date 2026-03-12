@@ -34,6 +34,64 @@ export interface AdminSetupStatus {
   setupComplete: boolean;
 }
 
+export type UserRights = (typeof UserRights)[keyof typeof UserRights];
+
+export const UserRights = {
+  store_manager: "store_manager",
+  store_supervisor: "store_supervisor",
+  administrator: "administrator",
+} as const;
+
+export interface User {
+  id: number;
+  userId: string;
+  username: string;
+  forenames: string;
+  surname: string;
+  employeeNumber: string;
+  rights: UserRights;
+  storeBranchCode: string;
+  isActive: boolean;
+}
+
+export type CreateUserRequestRights =
+  (typeof CreateUserRequestRights)[keyof typeof CreateUserRequestRights];
+
+export const CreateUserRequestRights = {
+  store_manager: "store_manager",
+  store_supervisor: "store_supervisor",
+  administrator: "administrator",
+} as const;
+
+export interface CreateUserRequest {
+  username: string;
+  forenames: string;
+  surname: string;
+  employeeNumber: string;
+  rights: CreateUserRequestRights;
+  storeBranchCode: string;
+  isActive: boolean;
+}
+
+export type UpdateUserRequestRights =
+  (typeof UpdateUserRequestRights)[keyof typeof UpdateUserRequestRights];
+
+export const UpdateUserRequestRights = {
+  store_manager: "store_manager",
+  store_supervisor: "store_supervisor",
+  administrator: "administrator",
+} as const;
+
+export interface UpdateUserRequest {
+  username?: string;
+  forenames?: string;
+  surname?: string;
+  employeeNumber?: string;
+  rights?: UpdateUserRequestRights;
+  storeBranchCode?: string;
+  isActive?: boolean;
+}
+
 export interface AdminLoginRequest {
   username: string;
   password: string;

@@ -25,6 +25,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /users:
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all user accounts
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+  /users/{id}:
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update a user account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /admin/login:
     post:
       operationId: adminLogin
@@ -167,6 +240,82 @@ components:
           type: boolean
       required:
         - setupComplete
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        username:
+          type: string
+        forenames:
+          type: string
+        surname:
+          type: string
+        employeeNumber:
+          type: string
+        rights:
+          type: string
+          enum: [store_manager, store_supervisor, administrator]
+        storeBranchCode:
+          type: string
+        isActive:
+          type: boolean
+      required:
+        - id
+        - userId
+        - username
+        - forenames
+        - surname
+        - employeeNumber
+        - rights
+        - storeBranchCode
+        - isActive
+    CreateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        forenames:
+          type: string
+        surname:
+          type: string
+        employeeNumber:
+          type: string
+        rights:
+          type: string
+          enum: [store_manager, store_supervisor, administrator]
+        storeBranchCode:
+          type: string
+        isActive:
+          type: boolean
+      required:
+        - username
+        - forenames
+        - surname
+        - employeeNumber
+        - rights
+        - storeBranchCode
+        - isActive
+    UpdateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        forenames:
+          type: string
+        surname:
+          type: string
+        employeeNumber:
+          type: string
+        rights:
+          type: string
+          enum: [store_manager, store_supervisor, administrator]
+        storeBranchCode:
+          type: string
+        isActive:
+          type: boolean
     AdminLoginRequest:
       type: object
       properties:

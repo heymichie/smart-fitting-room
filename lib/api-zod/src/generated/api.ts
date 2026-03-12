@@ -16,6 +16,66 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * @summary Create a new user account
+ */
+export const CreateUserBody = zod.object({
+  username: zod.string(),
+  forenames: zod.string(),
+  surname: zod.string(),
+  employeeNumber: zod.string(),
+  rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
+  storeBranchCode: zod.string(),
+  isActive: zod.boolean(),
+});
+
+/**
+ * @summary List all user accounts
+ */
+export const ListUsersResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  username: zod.string(),
+  forenames: zod.string(),
+  surname: zod.string(),
+  employeeNumber: zod.string(),
+  rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
+  storeBranchCode: zod.string(),
+  isActive: zod.boolean(),
+});
+export const ListUsersResponse = zod.array(ListUsersResponseItem);
+
+/**
+ * @summary Update a user account
+ */
+export const UpdateUserParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateUserBody = zod.object({
+  username: zod.string().optional(),
+  forenames: zod.string().optional(),
+  surname: zod.string().optional(),
+  employeeNumber: zod.string().optional(),
+  rights: zod
+    .enum(["store_manager", "store_supervisor", "administrator"])
+    .optional(),
+  storeBranchCode: zod.string().optional(),
+  isActive: zod.boolean().optional(),
+});
+
+export const UpdateUserResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  username: zod.string(),
+  forenames: zod.string(),
+  surname: zod.string(),
+  employeeNumber: zod.string(),
+  rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
+  storeBranchCode: zod.string(),
+  isActive: zod.boolean(),
+});
+
+/**
  * Validates administrator credentials and returns a session token
  * @summary Administrator login
  */
