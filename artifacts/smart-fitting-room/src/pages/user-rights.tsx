@@ -21,35 +21,69 @@ interface RightsSettings {
   adminSpoolReports:      boolean;
 }
 
-const DEFAULT_SETTINGS: RightsSettings = {
+const DEFAULT: RightsSettings = {
   smRespondAlert: true, smOpenDoor: true, smClearEntrance: true, smSpoolReports: true,
   ssRespondAlert: true, ssOpenDoor: true, ssClearEntrance: true, ssSpoolReports: true,
   adminCreateAccounts: true, adminSetupFittingRooms: true, adminSpoolReports: true,
 };
 
-interface PermissionRow {
-  label:   string;
-  smKey?:  keyof RightsSettings;
-  ssKey?:  keyof RightsSettings;
-  adKey?:  keyof RightsSettings;
+type Key = keyof RightsSettings;
+
+interface Row {
+  label: string;
+  sm:    Key | null;
+  ss:    Key | null;
+  ad:    Key | null;
 }
 
-const PERMISSION_ROWS: PermissionRow[] = [
-  { label: "Respond to fitting room alert", smKey: "smRespondAlert",         ssKey: "ssRespondAlert"   },
-  { label: "Open Fitting Room Door",        smKey: "smOpenDoor",              ssKey: "ssOpenDoor"       },
-  { label: "Clear main entrance alert",     smKey: "smClearEntrance",         ssKey: "ssClearEntrance"  },
-  { label: "Spool Reports",                 smKey: "smSpoolReports",          ssKey: "ssSpoolReports",  adKey: "adminSpoolReports"      },
-  { label: "Create New Accounts",                                                                        adKey: "adminCreateAccounts"    },
-  { label: "Setup branch fitting rooms",                                                                 adKey: "adminSetupFittingRooms" },
+const ROWS: Row[] = [
+  { label: "Respond to fitting room alert", sm: "smRespondAlert",         ss: "ssRespondAlert",  ad: null                      },
+  { label: "Open Fitting Room Door",        sm: "smOpenDoor",              ss: "ssOpenDoor",       ad: null                      },
+  { label: "Clear main entrance alert",     sm: "smClearEntrance",         ss: "ssClearEntrance",  ad: null                      },
+  { label: "Spool Reports",                 sm: "smSpoolReports",          ss: "ssSpoolReports",   ad: "adminSpoolReports"       },
+  { label: "Create New Accounts",           sm: null,                      ss: null,               ad: "adminCreateAccounts"     },
+  { label: "Setup branch fitting rooms",    sm: null,                      ss: null,               ad: "adminSetupFittingRooms"  },
 ];
 
+const ROLES = [
+  { label: "Store Manager",   col: "sm" as const },
+  { label: "Store Supervisor",col: "ss" as const },
+  { label: "Administrator",   col: "ad" as const },
+];
+
+function Checkbox({
+  checked, applicable, onChange,
+}: { checked: boolean; applicable: boolean; onChange: () => void }) {
+  return (
+    <button
+      onClick={applicable ? onChange : undefined}
+      disabled={!applicable}
+      aria-checked={applicable ? checked : undefined}
+      role="checkbox"
+      className="w-5 h-5 rounded border-2 flex items-center justify-center transition shrink-0"
+      style={{
+        backgroundColor: !applicable ? "transparent" : checked ? "#1e3f7a" : "#fff",
+        borderColor:     !applicable ? "#bbb" : checked ? "#1e3f7a" : "#888",
+        opacity:         !applicable ? 0.3 : 1,
+        cursor:          !applicable ? "not-allowed" : "pointer",
+      }}
+    >
+      {applicable && checked && (
+        <svg viewBox="0 0 12 10" fill="none" className="w-3 h-3">
+          <path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function UserRights() {
-  const [, setLocation]                 = useLocation();
-  const [admin, setAdmin]               = useState<AdminUser | null>(null);
-  const [settings, setSettings]         = useState<RightsSettings>(DEFAULT_SETTINGS);
-  const [isLoading, setIsLoading]       = useState(true);
-  const [isSaving, setIsSaving]         = useState(false);
-  const { toast }                       = useToast();
+  const [, setLocation]           = useLocation();
+  const [admin, setAdmin]         = useState<AdminUser | null>(null);
+  const [settings, setSettings]   = useState<RightsSettings>(DEFAULT);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving]   = useState(false);
+  const { toast }                 = useToast();
 
   useEffect(() => {
     const token   = localStorage.getItem("sfr_admin_token");
@@ -63,16 +97,14 @@ export default function UserRights() {
     const token = localStorage.getItem("sfr_admin_token");
     fetch(`${API_BASE}/rights-settings`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
-      .then(data => { setSettings({ ...DEFAULT_SETTINGS, ...data }); })
-      .catch(() => { /* use defaults */ })
+      .then(d => setSettings({ ...DEFAULT, ...d }))
+      .catch(() => {})
       .finally(() => setIsLoading(false));
   }, [admin]);
 
-  const toggle = (key: keyof RightsSettings) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  const toggle = (key: Key) => setSettings(p => ({ ...p, [key]: !p[key] }));
 
-  const save = async (andNavigate?: boolean) => {
+  const save = async (navigate: boolean) => {
     setIsSaving(true);
     const token = localStorage.getItem("sfr_admin_token");
     try {
@@ -83,7 +115,7 @@ export default function UserRights() {
       });
       if (!res.ok) throw new Error();
       toast({ title: "Rights saved", description: "User rights updated successfully." });
-      if (andNavigate) setLocation("/dashboard");
+      if (navigate) setLocation("/dashboard");
     } catch {
       toast({ title: "Error", description: "Failed to save rights.", variant: "destructive" });
     } finally {
@@ -92,25 +124,6 @@ export default function UserRights() {
   };
 
   if (!admin) return null;
-
-  const COL_HEADER = "text-white font-bold text-base px-6 py-4 border-r border-white/20 last:border-r-0";
-  const CELL = "flex items-center gap-3 px-6 py-3 border-r border-white/20 last:border-r-0";
-
-  const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
-    <button
-      onClick={onChange}
-      className="w-5 h-5 shrink-0 border-2 border-gray-400 rounded flex items-center justify-center transition hover:border-gray-600"
-      style={{ backgroundColor: checked ? "#1e3f7a" : "#fff" }}
-      aria-checked={checked}
-      role="checkbox"
-    >
-      {checked && (
-        <svg viewBox="0 0 12 10" fill="none" className="w-3 h-3">
-          <path d="M1 5l3.5 3.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
-    </button>
-  );
 
   return (
     <div className="min-h-screen w-full flex flex-col" style={{ backgroundColor: "#1e3f7a" }}>
@@ -122,57 +135,65 @@ export default function UserRights() {
         ) : (
           <>
             <div className="w-full rounded-xl overflow-hidden border border-white/10">
-              {/* Header */}
-              <div className="grid" style={{ gridTemplateColumns: "1fr 1fr 1fr", backgroundColor: "#111827" }}>
-                {["Store Manager", "Store Supervisor", "Administrator"].map(h => (
-                  <div key={h} className={COL_HEADER}>{h}</div>
+              {/* Header row */}
+              <div
+                className="grid text-white font-bold text-sm"
+                style={{ backgroundColor: "#111827", gridTemplateColumns: "2fr 1fr 1fr 1fr" }}
+              >
+                <div className="flex items-center px-5 py-3 border-r border-white/10">Function</div>
+                {ROLES.map(r => (
+                  <div key={r.label} className="flex items-center justify-center px-3 py-3 border-r border-white/10 last:border-r-0 text-center">
+                    {r.label}
+                  </div>
                 ))}
               </div>
 
-              {/* Rows */}
-              {PERMISSION_ROWS.map((row, idx) => (
+              {/* Permission rows */}
+              {ROWS.map((row, idx) => (
                 <div
                   key={row.label}
-                  className="grid border-t border-white/10"
+                  className="grid border-t border-white/10 items-center"
                   style={{
-                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gridTemplateColumns: "2fr 1fr 1fr 1fr",
                     backgroundColor: idx % 2 === 0 ? "#e8eaed" : "#d8dbe2",
                   }}
                 >
+                  {/* Function label */}
+                  <div className="flex items-center px-5 py-3 text-sm font-medium text-gray-800 border-r border-white/20">
+                    {row.label}
+                  </div>
+
                   {/* Store Manager */}
-                  <div className={CELL}>
-                    {row.smKey ? (
-                      <>
-                        <Checkbox checked={settings[row.smKey] as boolean} onChange={() => toggle(row.smKey!)} />
-                        <span className="text-sm text-gray-800">{row.label}</span>
-                      </>
-                    ) : <span />}
+                  <div className="flex items-center justify-center px-3 py-3 border-r border-white/20">
+                    <Checkbox
+                      applicable={row.sm !== null}
+                      checked={row.sm !== null ? settings[row.sm] : false}
+                      onChange={() => row.sm && toggle(row.sm)}
+                    />
                   </div>
 
                   {/* Store Supervisor */}
-                  <div className={CELL}>
-                    {row.ssKey ? (
-                      <>
-                        <Checkbox checked={settings[row.ssKey] as boolean} onChange={() => toggle(row.ssKey!)} />
-                        <span className="text-sm text-gray-800">{row.label}</span>
-                      </>
-                    ) : <span />}
+                  <div className="flex items-center justify-center px-3 py-3 border-r border-white/20">
+                    <Checkbox
+                      applicable={row.ss !== null}
+                      checked={row.ss !== null ? settings[row.ss] : false}
+                      onChange={() => row.ss && toggle(row.ss)}
+                    />
                   </div>
 
                   {/* Administrator */}
-                  <div className={CELL}>
-                    {row.adKey ? (
-                      <>
-                        <Checkbox checked={settings[row.adKey] as boolean} onChange={() => toggle(row.adKey!)} />
-                        <span className="text-sm text-gray-800">{row.label}</span>
-                      </>
-                    ) : <span />}
+                  <div className="flex items-center justify-center px-3 py-3">
+                    <Checkbox
+                      applicable={row.ad !== null}
+                      checked={row.ad !== null ? settings[row.ad] : false}
+                      onChange={() => row.ad && toggle(row.ad)}
+                    />
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Action buttons */}
+            {/* Buttons */}
             <div className="flex gap-6 mt-8 justify-center">
               <button
                 onClick={() => save(false)}
