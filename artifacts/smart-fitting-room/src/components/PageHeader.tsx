@@ -12,6 +12,7 @@ const BREADCRUMB_PATHS: Record<string, string> = {
   "Create Account": "/create-account",
   "User Rights": "/user-rights",
   "Setup Fitting Rooms": "/setup-fitting-rooms",
+  "Reports": "/reports",
 };
 
 function useLiveClock() {
