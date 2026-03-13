@@ -125,19 +125,6 @@ export default function Reports() {
     }));
   };
 
-  const allSelected = REPORT_TYPES.every(rt => rt.options.every(opt => selection[rt.name][opt.key]));
-  const toggleAll   = () => {
-    const next = !allSelected;
-    setSelection(() => {
-      const updated: SelectionMap = {};
-      for (const rt of REPORT_TYPES) {
-        updated[rt.name] = {};
-        for (const opt of rt.options) updated[rt.name][opt.key] = next;
-      }
-      return updated;
-    });
-  };
-
   const hasAnySelection = Object.values(selection).some(opts => Object.values(opts).some(Boolean));
 
   // Download individual audio file
@@ -331,24 +318,7 @@ export default function Reports() {
           {/* Header row */}
           <div className="grid text-white font-bold text-sm" style={{ backgroundColor: "#111827", gridTemplateColumns: "1fr 1.6fr" }}>
             <div className="flex items-center px-5 py-3 border-r border-white/10">Report Type</div>
-            <div className="flex items-center justify-between px-5 py-3">
-              <span>Column Options</span>
-              <button
-                onClick={toggleAll}
-                className="flex items-center gap-2 text-xs font-semibold transition hover:opacity-80 active:scale-95 rounded px-2.5 py-1"
-                style={{ backgroundColor: allSelected ? "#3b5fa0" : "#ffffff22", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
-              >
-                <span className="w-4 h-4 shrink-0 border-2 rounded flex items-center justify-center"
-                  style={{ backgroundColor: allSelected ? "#fff" : "transparent", borderColor: "#fff" }}>
-                  {allSelected && (
-                    <svg viewBox="0 0 12 10" fill="none" className="w-2.5 h-2.5">
-                      <path d="M1 5l3.5 3.5L11 1" stroke="#1e3f7a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </span>
-                {allSelected ? "Deselect All" : "Select All"}
-              </button>
-            </div>
+            <div className="flex items-center px-5 py-3">Column Options</div>
           </div>
 
           {/* Rows */}
@@ -365,6 +335,39 @@ export default function Reports() {
                   )}
                 </div>
                 <div className="flex flex-col gap-2 px-5 py-4">
+                  {/* Per-report-type Select All */}
+                  {(() => {
+                    const allForType = rt.options.every(o => selection[rt.name][o.key]);
+                    return (
+                      <button
+                        onClick={() => {
+                          const next = !allForType;
+                          setSelection(prev => ({
+                            ...prev,
+                            [rt.name]: Object.fromEntries(rt.options.map(o => [o.key, next])),
+                          }));
+                        }}
+                        className="self-start flex items-center gap-1.5 text-xs font-semibold rounded px-2 py-0.5 mb-1 transition hover:opacity-80"
+                        style={{
+                          backgroundColor: allForType ? "#1e3f7a" : "#d1d5db",
+                          color: allForType ? "#fff" : "#374151",
+                        }}
+                      >
+                        <span
+                          className="w-3.5 h-3.5 shrink-0 border rounded flex items-center justify-center"
+                          style={{ backgroundColor: allForType ? "#fff" : "transparent", borderColor: allForType ? "#fff" : "#6b7280" }}
+                        >
+                          {allForType && (
+                            <svg viewBox="0 0 12 10" fill="none" className="w-2 h-2">
+                              <path d="M1 5l3.5 3.5L11 1" stroke="#1e3f7a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </span>
+                        {allForType ? "Deselect All" : "Select All"}
+                      </button>
+                    );
+                  })()}
+
                   {rt.options.map(opt => {
                     const checked = selection[rt.name][opt.key];
                     return (
