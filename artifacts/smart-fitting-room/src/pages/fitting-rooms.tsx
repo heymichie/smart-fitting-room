@@ -38,6 +38,16 @@ function formatTime(iso: string | null): string {
   return `${hh}${mm}hrs`;
 }
 
+function formatDuration(iso: string | null, now: Date): string {
+  if (!iso) return "—";
+  const diffMs  = now.getTime() - new Date(iso).getTime();
+  const totalMins = Math.max(0, Math.floor(diffMs / 60000));
+  const hrs  = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  if (hrs === 0) return `${mins}min${mins !== 1 ? "s" : ""}`;
+  return mins === 0 ? `${hrs}hr${hrs !== 1 ? "s" : ""}` : `${hrs}hr ${mins}min${mins !== 1 ? "s" : ""}`;
+}
+
 function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -95,7 +105,7 @@ function StatusBadge({ status }: { status: FittingRoom["status"] }) {
   );
 }
 
-function RoomCard({ room }: { room: FittingRoom }) {
+function RoomCard({ room, now }: { room: FittingRoom; now: Date }) {
   const [, setLocation] = useLocation();
   const garments = (room.garmentCount !== null && room.garmentCount !== undefined)
     ? String(room.garmentCount).padStart(2, "0")
@@ -119,12 +129,14 @@ function RoomCard({ room }: { room: FittingRoom }) {
           {room.status === "occupied" && (
             <>
               <p>Entry Time: {formatTime(room.occupiedSince)}</p>
+              <p>Duration: {formatDuration(room.occupiedSince, now)}</p>
               <p>Number of garments: {garments}</p>
             </>
           )}
           {room.status === "alert" && (
             <>
               <p>Entry Time: {formatTime(room.occupiedSince)}</p>
+              <p>Duration: {formatDuration(room.occupiedSince, now)}</p>
               <p>Time of alert: {formatTime(room.alertSince)}</p>
               <p>Number of garments: {garments}</p>
             </>
@@ -256,7 +268,7 @@ export default function FittingRoomsPage() {
               className="w-full grid gap-8 mt-4"
               style={{ gridTemplateColumns: `repeat(${Math.min(rooms.length, 3)}, 1fr)`, maxWidth: "900px" }}
             >
-              {rooms.map(room => <RoomCard key={room.id} room={room} />)}
+              {rooms.map(room => <RoomCard key={room.id} room={room} now={now} />)}
             </div>
 
             <button
