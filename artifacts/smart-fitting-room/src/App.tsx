@@ -15,6 +15,7 @@ import UserRights from "@/pages/user-rights";
 import SetupFittingRooms from "@/pages/setup-fitting-rooms";
 import Reports from "@/pages/reports";
 import UserLogin from "@/pages/user-login";
+import UserSignIn from "@/pages/user-signin";
 import UserDashboard from "@/pages/user-dashboard";
 import NotFound from "@/pages/not-found";
 
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/setup-fitting-rooms" component={SetupFittingRooms} />
       <Route path="/reports" component={Reports} />
       <Route path="/user-login" component={UserLogin} />
+      <Route path="/user-signin" component={UserSignIn} />
       <Route path="/user-dashboard" component={UserDashboard} />
 
       {/* Fallback 404 */}
