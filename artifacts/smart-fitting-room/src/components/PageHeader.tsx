@@ -6,6 +6,12 @@ interface PageHeaderProps {
   breadcrumb: string;
 }
 
+const BREADCRUMB_PATHS: Record<string, string> = {
+  "Home": "/dashboard",
+  "Manage Account": "/manage-accounts",
+  "Create Account": "/create-account",
+};
+
 function useLiveClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -60,7 +66,27 @@ export default function PageHeader({ title, breadcrumb }: PageHeaderProps) {
           <h1 className="text-white font-bold leading-tight" style={{ fontSize: "clamp(1.6rem, 4vw, 2.6rem)" }}>
             {title}
           </h1>
-          <p className="text-white/60 text-sm mt-0.5">{breadcrumb}</p>
+          <p className="text-white/60 text-sm mt-0.5">
+            {breadcrumb.split("/").map((segment, i, arr) => {
+              const isLast = i === arr.length - 1;
+              const path = BREADCRUMB_PATHS[segment.trim()];
+              return (
+                <span key={i}>
+                  {i > 0 && <span className="mx-1 opacity-50">/</span>}
+                  {!isLast && path ? (
+                    <button
+                      onClick={() => setLocation(path)}
+                      className="hover:text-white underline underline-offset-2 transition"
+                    >
+                      {segment.trim()}
+                    </button>
+                  ) : (
+                    <span>{segment.trim()}</span>
+                  )}
+                </span>
+              );
+            })}
+          </p>
         </div>
       </div>
 

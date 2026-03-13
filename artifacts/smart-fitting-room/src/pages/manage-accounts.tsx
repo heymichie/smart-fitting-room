@@ -93,7 +93,7 @@ export default function ManageAccounts() {
             return (
               <div
                 key={user.id}
-                className="grid text-sm text-gray-800 border-t border-white/20 cursor-pointer hover:brightness-95 transition"
+                className="grid items-center text-sm text-gray-800 border-t border-white/20 cursor-pointer hover:brightness-95 transition"
                 style={{
                   backgroundColor: idx % 2 === 0 ? "#e8eaed" : "#d8dbe2",
                   gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 0.8fr 1.3fr",
