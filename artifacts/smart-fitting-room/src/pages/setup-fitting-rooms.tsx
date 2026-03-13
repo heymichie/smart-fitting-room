@@ -174,7 +174,7 @@ export default function SetupFittingRooms() {
                       </div>
 
                       {/* Card body */}
-                      <div className="flex-1 flex flex-col items-start justify-end px-4 pb-4 gap-2">
+                      <div className="flex-1 flex flex-col items-center justify-center px-4 pb-4 gap-3">
                         {/* Status toggle */}
                         <button
                           onClick={() => cycleStatus(room)}
@@ -186,7 +186,7 @@ export default function SetupFittingRooms() {
                         </button>
 
                         {/* Location */}
-                        <div className="text-xs text-gray-600 w-full">
+                        <div className="text-xs text-gray-600 w-full text-left">
                           <span className="font-semibold">Location: </span>
                           <input
                             type="text"
