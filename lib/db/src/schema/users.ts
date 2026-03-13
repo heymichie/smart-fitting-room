@@ -12,6 +12,7 @@ export const usersTable = pgTable("users", {
   rights: text("rights", { enum: ["store_manager", "store_supervisor", "administrator"] }).notNull(),
   storeBranchCode: text("store_branch_code").notNull(),
   email: text("email"),
+  passwordHash: text("password_hash"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
