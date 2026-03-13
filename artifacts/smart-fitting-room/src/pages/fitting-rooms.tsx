@@ -114,7 +114,7 @@ function RoomCard({ room }: { room: FittingRoom }) {
 
         <div className="text-center text-sm text-gray-700 space-y-1 w-full">
           {room.status === "available" && (
-            <p>Last Occupied: {formatDateTime(room.lastOccupiedAt)}</p>
+            <p>Last Occupied: {formatTime(room.lastOccupiedAt)}</p>
           )}
           {room.status === "occupied" && (
             <>
