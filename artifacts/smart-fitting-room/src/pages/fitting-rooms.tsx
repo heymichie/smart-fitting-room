@@ -118,13 +118,13 @@ function RoomCard({ room }: { room: FittingRoom }) {
           )}
           {room.status === "occupied" && (
             <>
-              <p>Time Occupied: {formatTime(room.occupiedSince)}</p>
+              <p>Entry Time: {formatTime(room.occupiedSince)}</p>
               <p>Number of garments: {garments}</p>
             </>
           )}
           {room.status === "alert" && (
             <>
-              <p>Time Occupied: {formatTime(room.occupiedSince)}</p>
+              <p>Entry Time: {formatTime(room.occupiedSince)}</p>
               <p>Time of alert: {formatTime(room.alertSince)}</p>
               <p>Number of garments: {garments}</p>
             </>
