@@ -148,6 +148,16 @@ export default function Login() {
             >
               {isPending ? "Logging in…" : "Login"}
             </button>
+
+            <div className="text-center mt-1">
+              <a
+                href="/user-signin"
+                className="text-xs font-bold hover:underline transition"
+                style={{ color: "#1e3f7a" }}
+              >
+                Staff Login
+              </a>
+            </div>
           </form>
         </motion.div>
       </div>
