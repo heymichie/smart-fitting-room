@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -28,7 +28,7 @@ router.get("/user-auth/check", async (req, res): Promise<void> => {
   const [user] = await db
     .select({ id: usersTable.id, passwordHash: usersTable.passwordHash, isActive: usersTable.isActive })
     .from(usersTable)
-    .where(eq(usersTable.username, username))
+    .where(sql`lower(${usersTable.username}) = lower(${username})`)
     .limit(1);
 
   if (!user) {
@@ -159,7 +159,7 @@ router.post("/user-auth/login", async (req, res): Promise<void> => {
   const [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.username, username))
+    .where(sql`lower(${usersTable.username}) = lower(${username})`)
     .limit(1);
 
   if (!user) {
@@ -223,7 +223,7 @@ router.post("/user-auth/forgot-password", async (req, res): Promise<void> => {
   const [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.username, username.trim()))
+    .where(sql`lower(${usersTable.username}) = lower(${username.trim()})`)
     .limit(1);
 
   // Always return 200 to avoid user enumeration
