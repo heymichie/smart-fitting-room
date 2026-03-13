@@ -302,20 +302,20 @@ export default function AccountDetail() {
           {/* Action buttons */}
           <div className="flex gap-4 mt-6">
             <button onClick={handleActivate} disabled={isPending || user.isActive}
-              className="flex-1 rounded-xl py-3.5 font-semibold text-gray-700 text-base transition hover:brightness-95 active:scale-[0.98]"
-              style={{ backgroundColor: "#f0f1f3", opacity: user.isActive ? 0.35 : 1 }}
+              className="flex-1 rounded-xl py-3.5 font-semibold text-gray-800 text-base transition hover:brightness-95 active:scale-[0.98]"
+              style={{ backgroundColor: "#ffffff", opacity: user.isActive ? 0.35 : 1 }}
               title={user.isActive ? "Account is already active" : "Activate this account"}>
               Active
             </button>
             <button onClick={handleDeactivate} disabled={isPending || !user.isActive}
-              className="flex-1 rounded-xl py-3.5 font-semibold text-gray-500 text-base transition hover:brightness-95 active:scale-[0.98]"
-              style={{ backgroundColor: "#b0b5be", opacity: !user.isActive ? 0.35 : 1 }}
+              className="flex-1 rounded-xl py-3.5 font-semibold text-white text-base transition hover:brightness-95 active:scale-[0.98]"
+              style={{ backgroundColor: "#6b7a8e", opacity: !user.isActive ? 0.35 : 1 }}
               title={!user.isActive ? "Account is already deactivated" : "Deactivate this account"}>
               Deactivate
             </button>
             <button onClick={handleResetPassword} disabled={isPending}
-              className="flex-1 rounded-xl py-3.5 font-semibold text-gray-500 text-base transition hover:brightness-95 active:scale-[0.98]"
-              style={{ backgroundColor: "#b0b5be" }}>
+              className="flex-1 rounded-xl py-3.5 font-semibold text-white text-base transition hover:brightness-95 active:scale-[0.98]"
+              style={{ backgroundColor: "#6b7a8e" }}>
               Reset Password
             </button>
           </div>
