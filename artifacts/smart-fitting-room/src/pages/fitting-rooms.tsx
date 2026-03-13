@@ -96,6 +96,7 @@ function StatusBadge({ status }: { status: FittingRoom["status"] }) {
 }
 
 function RoomCard({ room }: { room: FittingRoom }) {
+  const [, setLocation] = useLocation();
   return (
     <div className="flex flex-col items-center">
       <h3 className="text-white font-bold text-xl mb-1">{room.name}</h3>
@@ -127,6 +128,7 @@ function RoomCard({ room }: { room: FittingRoom }) {
         </div>
 
         <button
+          onClick={() => setLocation("/fitting-room-details")}
           className="mt-auto text-sm text-gray-600 hover:text-gray-900 font-medium transition"
         >
           View details
@@ -247,6 +249,7 @@ export default function FittingRoomsPage() {
             </div>
 
             <button
+              onClick={() => setLocation("/fitting-room-details")}
               className="mt-8 text-white/80 hover:text-white text-sm underline underline-offset-2 transition"
             >
               View Full Fitting Room Details
