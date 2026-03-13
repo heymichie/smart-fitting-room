@@ -59,10 +59,10 @@ export default function ManageAccounts() {
             className="grid text-white font-bold text-sm"
             style={{
               backgroundColor: "#111827",
-              gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1.3fr",
+              gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 0.8fr 1.3fr",
             }}
           >
-            {["Username","Full Name","Employee\nNumber","Branch Code","User Rights","Created"].map((col) => (
+            {["Username","Full Name","Employee\nNumber","Branch Code","User Rights","Status","Created"].map((col) => (
               <div key={col} className="px-4 py-3 border-r border-white/10 last:border-r-0 whitespace-pre-line">
                 {col}
               </div>
@@ -96,7 +96,7 @@ export default function ManageAccounts() {
                 className="grid text-sm text-gray-800 border-t border-white/20 cursor-pointer hover:brightness-95 transition"
                 style={{
                   backgroundColor: idx % 2 === 0 ? "#e8eaed" : "#d8dbe2",
-                  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1.3fr",
+                  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 0.8fr 1.3fr",
                 }}
                 onClick={() => setLocation(`/manage-accounts/${user.id}`)}
               >
@@ -105,6 +105,17 @@ export default function ManageAccounts() {
                 <div className="px-4 py-3 border-r border-white/20">{user.employeeNumber}</div>
                 <div className="px-4 py-3 border-r border-white/20">{branchDisplay}</div>
                 <div className="px-4 py-3 border-r border-white/20">{formatRights(user.rights)}</div>
+                <div className="px-4 py-3 border-r border-white/20">
+                  <span
+                    className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                    style={{
+                      backgroundColor: user.isActive ? "#dcfce7" : "#fee2e2",
+                      color: user.isActive ? "#15803d" : "#b91c1c",
+                    }}
+                  >
+                    {user.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
                 <div className="px-4 py-3 italic text-gray-600">
                   {formatCreated(user.createdAt, admin.username)}
                 </div>
