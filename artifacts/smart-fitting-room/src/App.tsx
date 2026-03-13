@@ -14,6 +14,8 @@ import AccountDetail from "@/pages/account-detail";
 import UserRights from "@/pages/user-rights";
 import SetupFittingRooms from "@/pages/setup-fitting-rooms";
 import Reports from "@/pages/reports";
+import UserLogin from "@/pages/user-login";
+import UserDashboard from "@/pages/user-dashboard";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -39,6 +41,8 @@ function Router() {
       <Route path="/user-rights" component={UserRights} />
       <Route path="/setup-fitting-rooms" component={SetupFittingRooms} />
       <Route path="/reports" component={Reports} />
+      <Route path="/user-login" component={UserLogin} />
+      <Route path="/user-dashboard" component={UserDashboard} />
 
       {/* Fallback 404 */}
       <Route component={NotFound} />
