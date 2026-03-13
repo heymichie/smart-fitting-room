@@ -81,6 +81,22 @@ export default function UserLogin() {
       });
       const data = await res.json();
       if (!res.ok) { setErrorMsg(data.error ?? "An error occurred"); return; }
+
+      // Auto-login: store the session token returned by reset-password
+      if (data.token) {
+        localStorage.setItem("sfr_user_token", data.token);
+        localStorage.setItem("sfr_user", JSON.stringify({
+          userId:     data.userId,
+          username:   data.username,
+          forenames:  data.forenames,
+          surname:    data.surname,
+          rights:     data.rights,
+          branchCode: data.branchCode,
+        }));
+        setLocation("/user-dashboard");
+        return;
+      }
+
       setStage("success");
     } catch {
       setErrorMsg("Could not reach server. Please try again.");

@@ -7,7 +7,6 @@ import { randomUUID } from "crypto";
 const router: IRouter = Router();
 
 /* ─── SSE client registry ────────────────────────────────────────────────── */
-// Map<branchCode, Set<Response>>
 const sseClients = new Map<string, Set<Response>>();
 
 function addClient(branchCode: string, res: Response) {
@@ -28,6 +27,37 @@ function broadcast(branchCode: string, event: string, data: unknown) {
   }
 }
 
+/* ─── Derive timestamp updates for status transitions ─────────────────────── */
+function buildStatusUpdate(
+  currentRoom: { status: string; occupiedSince: Date | null; lastOccupiedAt: Date | null },
+  newStatus: string,
+  garmentCount?: number | null,
+) {
+  const now = new Date();
+  const base: Record<string, unknown> = { status: newStatus, updatedAt: now };
+
+  if (garmentCount !== undefined && garmentCount !== null) {
+    base.garmentCount = garmentCount;
+  }
+
+  if (newStatus === "occupied") {
+    base.occupiedSince  = now;
+    base.lastOccupiedAt = now;
+    base.alertSince     = null;
+  } else if (newStatus === "alert") {
+    base.alertSince = now;
+    if (!currentRoom.occupiedSince) base.occupiedSince = now;
+    base.lastOccupiedAt = currentRoom.lastOccupiedAt ?? now;
+  } else {
+    base.lastOccupiedAt = currentRoom.occupiedSince ?? currentRoom.lastOccupiedAt ?? null;
+    base.occupiedSince  = null;
+    base.alertSince     = null;
+    if (!garmentCount) base.garmentCount = null;
+  }
+
+  return base;
+}
+
 /* ─── SSE subscription endpoint ──────────────────────────────────────────── */
 router.get("/fitting-rooms/events", (req, res): void => {
   const branchCode = req.query.branchCode as string;
@@ -39,7 +69,6 @@ router.get("/fitting-rooms/events", (req, res): void => {
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  // Send a heartbeat every 25 s to keep the connection alive through proxies
   const heartbeat = setInterval(() => {
     try { res.write(": heartbeat\n\n"); } catch { clearInterval(heartbeat); }
   }, 25000);
@@ -57,35 +86,36 @@ router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const { status, source } = req.body;
+  const { status, source, garmentCount } = req.body;
   const valid = ["available", "occupied", "alert"];
   if (!status || !valid.includes(status)) {
     res.status(400).json({ error: `status must be one of: ${valid.join(", ")}` });
     return;
   }
 
-  const [room] = await db
-    .update(fittingRoomsTable)
-    .set({ status, updatedAt: new Date() })
-    .where(eq(fittingRoomsTable.id, id))
-    .returning();
+  const [existing] = await db.select().from(fittingRoomsTable).where(eq(fittingRoomsTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "Room not found" }); return; }
 
-  if (!room) { res.status(404).json({ error: "Room not found" }); return; }
+  const updates = buildStatusUpdate(existing, status, garmentCount);
+  const [room] = await db.update(fittingRoomsTable).set(updates).where(eq(fittingRoomsTable.id, id)).returning();
 
-  // Broadcast to all dashboard clients watching this branch
   broadcast(room.branchCode, "status-update", {
-    id:        room.id,
-    roomId:    room.roomId,
-    name:      room.name,
-    status:    room.status,
-    source:    source ?? "iot",
-    timestamp: new Date().toISOString(),
+    id:             room.id,
+    roomId:         room.roomId,
+    name:           room.name,
+    status:         room.status,
+    occupiedSince:  room.occupiedSince,
+    alertSince:     room.alertSince,
+    lastOccupiedAt: room.lastOccupiedAt,
+    garmentCount:   room.garmentCount,
+    source:         source ?? "iot",
+    timestamp:      new Date().toISOString(),
   });
 
   res.json(room);
 });
 
-/* ─── Existing CRUD endpoints ────────────────────────────────────────────── */
+/* ─── Branches list ──────────────────────────────────────────────────────── */
 router.get("/fitting-rooms/branches", async (_req, res): Promise<void> => {
   const rows = await db
     .selectDistinct({ branchCode: usersTable.storeBranchCode })
@@ -94,6 +124,7 @@ router.get("/fitting-rooms/branches", async (_req, res): Promise<void> => {
   res.json(rows.map(r => r.branchCode));
 });
 
+/* ─── List rooms for a branch ────────────────────────────────────────────── */
 router.get("/fitting-rooms", async (req, res): Promise<void> => {
   const { branchCode } = req.query;
   if (!branchCode || typeof branchCode !== "string") {
@@ -108,6 +139,7 @@ router.get("/fitting-rooms", async (req, res): Promise<void> => {
   res.json(rooms);
 });
 
+/* ─── Create room ────────────────────────────────────────────────────────── */
 router.post("/fitting-rooms", async (req, res): Promise<void> => {
   const { branchCode, name, location, status } = req.body;
   if (!branchCode || !name) {
@@ -123,25 +155,42 @@ router.post("/fitting-rooms", async (req, res): Promise<void> => {
   res.status(201).json(room);
 });
 
+/* ─── Update room (admin) ────────────────────────────────────────────────── */
 router.patch("/fitting-rooms/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
-  const { location, status, name } = req.body;
+
+  const { location, status, name, garmentCount } = req.body;
+
+  let statusUpdates: Record<string, unknown> = {};
+  if (status !== undefined) {
+    const [existing] = await db.select().from(fittingRoomsTable).where(eq(fittingRoomsTable.id, id)).limit(1);
+    if (existing && existing.status !== status) {
+      statusUpdates = buildStatusUpdate(existing, status, garmentCount);
+    }
+  }
+
   const [room] = await db.update(fittingRoomsTable)
     .set({
       ...(location !== undefined && { location }),
-      ...(status   !== undefined && { status   }),
-      ...(name     !== undefined && { name     }),
+      ...(name !== undefined && { name }),
+      ...(garmentCount !== undefined && { garmentCount }),
+      ...statusUpdates,
     })
     .where(eq(fittingRoomsTable.id, id))
     .returning();
+
   if (!room) { res.status(404).json({ error: "Room not found" }); return; }
 
-  // Also broadcast manual admin updates
   if (status !== undefined) {
     broadcast(room.branchCode, "status-update", {
       id: room.id, roomId: room.roomId, name: room.name,
-      status: room.status, source: "admin",
+      status: room.status,
+      occupiedSince:  room.occupiedSince,
+      alertSince:     room.alertSince,
+      lastOccupiedAt: room.lastOccupiedAt,
+      garmentCount:   room.garmentCount,
+      source: "admin",
       timestamp: new Date().toISOString(),
     });
   }
@@ -149,6 +198,7 @@ router.patch("/fitting-rooms/:id", async (req, res): Promise<void> => {
   res.json(room);
 });
 
+/* ─── Delete room ────────────────────────────────────────────────────────── */
 router.delete("/fitting-rooms/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
