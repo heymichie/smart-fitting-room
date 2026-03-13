@@ -11,6 +11,7 @@ import Dashboard from "@/pages/dashboard";
 import CreateAccount from "@/pages/create-account";
 import ManageAccounts from "@/pages/manage-accounts";
 import AccountDetail from "@/pages/account-detail";
+import UserRights from "@/pages/user-rights";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/create-account" component={CreateAccount} />
       <Route path="/manage-accounts" component={ManageAccounts} />
       <Route path="/manage-accounts/:id" component={AccountDetail} />
+      <Route path="/user-rights" component={UserRights} />
 
       {/* Fallback 404 */}
       <Route component={NotFound} />
