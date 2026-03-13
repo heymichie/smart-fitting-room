@@ -32,8 +32,8 @@ export default function CreateAccount() {
   });
 
   const validate = () => {
-    if (!username || !forenames || !surname || !employeeNumber) {
-      setErrorMsg("Please fill in all required fields");
+    if (!username || !forenames || !surname || !employeeNumber || !email) {
+      setErrorMsg("Please fill in all fields, including the staff email address");
       return false;
     }
     return true;
