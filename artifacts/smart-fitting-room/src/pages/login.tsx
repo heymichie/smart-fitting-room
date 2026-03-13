@@ -82,7 +82,7 @@ export default function Login() {
           {/* Welcome text */}
           <div className="mt-10">
             <h1 className="text-white text-3xl md:text-4xl font-bold leading-tight">
-              Hello,<br />Welcome<br />Administrator!
+              Hello,<br />please log in
             </h1>
           </div>
         </motion.div>
