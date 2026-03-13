@@ -62,8 +62,8 @@ export default function ManageAccounts() {
               gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 0.8fr 1.3fr",
             }}
           >
-            {["Username","Full Name","Employee\nNumber","Branch Code","User Rights","Status","Created"].map((col) => (
-              <div key={col} className="px-4 py-3 border-r border-white/10 last:border-r-0 whitespace-pre-line">
+            {["Username","Full Name","Employee Number","Branch Code","User Rights","Status","Created"].map((col) => (
+              <div key={col} className="flex items-center px-4 py-3 border-r border-white/10 last:border-r-0">
                 {col}
               </div>
             ))}
@@ -100,12 +100,12 @@ export default function ManageAccounts() {
                 }}
                 onClick={() => setLocation(`/manage-accounts/${user.id}`)}
               >
-                <div className="px-4 py-3 border-r border-white/20">{user.username}</div>
-                <div className="px-4 py-3 border-r border-white/20">{user.forenames} {user.surname}</div>
-                <div className="px-4 py-3 border-r border-white/20">{user.employeeNumber}</div>
-                <div className="px-4 py-3 border-r border-white/20">{branchDisplay}</div>
-                <div className="px-4 py-3 border-r border-white/20">{formatRights(user.rights)}</div>
-                <div className="px-4 py-3 border-r border-white/20">
+                <div className="flex items-center px-4 py-3 border-r border-white/20">{user.username}</div>
+                <div className="flex items-center px-4 py-3 border-r border-white/20">{user.forenames} {user.surname}</div>
+                <div className="flex items-center px-4 py-3 border-r border-white/20">{user.employeeNumber}</div>
+                <div className="flex items-center px-4 py-3 border-r border-white/20">{branchDisplay}</div>
+                <div className="flex items-center px-4 py-3 border-r border-white/20">{formatRights(user.rights)}</div>
+                <div className="flex items-center px-4 py-3 border-r border-white/20">
                   <span
                     className="px-2 py-0.5 rounded-full text-xs font-semibold"
                     style={{
@@ -116,7 +116,7 @@ export default function ManageAccounts() {
                     {user.isActive ? "Active" : "Inactive"}
                   </span>
                 </div>
-                <div className="px-4 py-3 italic text-gray-600">
+                <div className="flex items-center px-4 py-3 italic text-gray-600">
                   {formatCreated(user.createdAt, admin.username)}
                 </div>
               </div>
