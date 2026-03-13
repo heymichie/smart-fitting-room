@@ -29,9 +29,11 @@ const REPORT_TYPES: ReportType[] = [
     ],
   },
   {
-    name: "Verbal",
+    name: "Fitting Room Alert Response",
     options: [
-      { key: "alertResponse", label: "Fitting Room alert response" },
+      { key: "audio",               label: "Audio"                 },
+      { key: "transcription",       label: "Transcription"         },
+      { key: "audioAndTranscription", label: "Audio and Transcription" },
     ],
   },
 ];
@@ -107,7 +109,8 @@ export default function Reports() {
 
   // Load voice recordings when branch changes or Verbal is ticked
   const loadRecordings = useCallback(async () => {
-    if (!selection["Verbal"]["alertResponse"]) { setRecordings([]); return; }
+    const frar = selection["Fitting Room Alert Response"];
+    if (!frar["audio"] && !frar["transcription"] && !frar["audioAndTranscription"]) { setRecordings([]); return; }
     setLoadingRecs(true);
     try {
       const qs  = branch ? `?branchCode=${encodeURIComponent(branch)}` : "";
@@ -265,7 +268,10 @@ export default function Reports() {
 
       const hasBranchStats = selection["Branch Stats"]["mainEntranceAlerts"] || selection["Branch Stats"]["alertsAttendants"];
       const hasFRS    = selection["Fitting Room Stats"]["productCodes"] || selection["Fitting Room Stats"]["fittingRoomAlerts"] || selection["Fitting Room Stats"]["alertsAttendants"];
-      const hasVerbal = selection["Verbal"]["alertResponse"];
+      const frarSel   = selection["Fitting Room Alert Response"];
+      const wantAudio = frarSel["audio"] || frarSel["audioAndTranscription"];
+      const wantTranscript = frarSel["transcription"] || frarSel["audioAndTranscription"];
+      const hasVerbal = frarSel["audio"] || frarSel["transcription"] || frarSel["audioAndTranscription"];
 
       // ── 1. Branch Stats ── one summary table, all branches in one view
       if (hasBranchStats) {
@@ -308,23 +314,34 @@ export default function Reports() {
         }
       }
 
-      // ── 3. Verbal ── grouped per branch when ALL
+      // ── 3. Fitting Room Alert Response ── grouped per branch when ALL
       if (hasVerbal) {
-        startSection("Verbal — Alert Responses");
-        const head = [["Fitting Room", "Alert Time", "Source", "Duration", "Transcript"]];
+        startSection("Fitting Room Alert Response");
+        // Build column headers based on selection
+        const frarCols = ["Fitting Room", "Alert Time", "Source", "Duration"];
+        if (wantAudio)      frarCols.push("Audio");
+        if (wantTranscript) frarCols.push("Transcript");
+        const transcriptColIdx = frarCols.indexOf("Transcript");
+
         for (const [bc, ] of roomsByBranch) {
           if (isAll) drawBranchBanner(bc);
           const bRecordings = recordingsByBranch.get(bc) ?? [];
           const body = bRecordings.length > 0
-            ? bRecordings.map(r => [
-                r.fittingRoomName ?? "—",
-                fmtDate(r.alertTime),
-                r.source === "mobile" ? "Mobile" : "Fitting Room",
-                fmtDuration(r.durationSec),
-                r.transcript ?? "(not transcribed)",
-              ])
-            : [["No recordings for this branch", "", "", "", ""]];
-          renderTable(head, body, { 4: { cellWidth: "auto" } });
+            ? bRecordings.map(r => {
+                const row = [
+                  r.fittingRoomName ?? "—",
+                  fmtDate(r.alertTime),
+                  r.source === "mobile" ? "Mobile" : "Fitting Room",
+                  fmtDuration(r.durationSec),
+                ];
+                if (wantAudio)      row.push(r.audioObjectPath ? "Available" : "—");
+                if (wantTranscript) row.push(r.transcript ?? "(not transcribed)");
+                return row;
+              })
+            : [Array(frarCols.length).fill("").map((_, i) => i === 0 ? "No recordings for this branch" : "")];
+          const colStyles: Record<number, object> = {};
+          if (transcriptColIdx >= 0) colStyles[transcriptColIdx] = { cellWidth: "auto" };
+          renderTable([frarCols], body, colStyles);
         }
       }
 
@@ -346,7 +363,8 @@ export default function Reports() {
 
   if (!admin) return null;
 
-  const verbalChecked = selection["Verbal"]["alertResponse"];
+  const frarSel      = selection["Fitting Room Alert Response"] ?? {};
+  const verbalChecked = frarSel["audio"] || frarSel["transcription"] || frarSel["audioAndTranscription"];
 
   return (
     <div className="min-h-screen w-full flex flex-col" style={{ backgroundColor: "#1e3f7a" }}>
@@ -395,7 +413,7 @@ export default function Reports() {
               >
                 <div className="flex items-center px-5 py-4 border-r border-white/20 text-sm font-medium text-gray-800">
                   {rt.name}
-                  {rt.name === "Verbal" && (
+                  {rt.name === "Fitting Room Alert Response" && (
                     <span className="ml-2 text-xs text-gray-500 font-normal">— AI transcribed</span>
                   )}
                 </div>
@@ -459,8 +477,8 @@ export default function Reports() {
                 </div>
               </div>
 
-              {/* Voice Recordings Panel — shown when Verbal is checked */}
-              {rt.name === "Verbal" && verbalChecked && (
+              {/* Voice Recordings Panel — shown when Fitting Room Alert Response is checked */}
+              {rt.name === "Fitting Room Alert Response" && verbalChecked && (
                 <div className="border-t border-white/10" style={{ backgroundColor: "#f0f4fb" }}>
                   <div className="px-5 py-3 flex items-center justify-between border-b border-gray-200">
                     <div className="flex items-center gap-2">
