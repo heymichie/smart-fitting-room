@@ -226,11 +226,14 @@ export default function UserLogin() {
               className="flex flex-col justify-center rounded-3xl px-8 py-10 w-72 md:w-80"
               style={{ backgroundColor: "rgba(255, 255, 255, 0.82)", backdropFilter: "blur(12px)" }}
             >
-              <h2 className="text-2xl md:text-3xl font-bold mb-6" style={{ color: "#1e3f7a" }}>
-                {title}
-              </h2>
+              {/* Title — only shown for new-user setup */}
+              {mode === "new" && (
+                <h2 className="text-2xl md:text-3xl font-bold mb-6" style={{ color: "#1e3f7a" }}>
+                  New Sign in
+                </h2>
+              )}
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <form onSubmit={handleSubmit} className={`flex flex-col gap-3 ${mode !== "new" ? "mt-2" : ""}`}>
                 <input
                   type="text"
                   placeholder="Username"
@@ -279,7 +282,7 @@ export default function UserLogin() {
                   )}
                 </AnimatePresence>
 
-                {/* Returning-user password */}
+                {/* Returning-user password + Forgot Password */}
                 <AnimatePresence>
                   {mode === "returning" && (
                     <motion.div
@@ -288,7 +291,7 @@ export default function UserLogin() {
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.25 }}
-                      className="overflow-hidden"
+                      className="flex flex-col gap-1 overflow-hidden"
                     >
                       <input
                         type="password"
@@ -299,6 +302,14 @@ export default function UserLogin() {
                         autoComplete="current-password"
                         required
                       />
+                      <div className="flex justify-end pr-1">
+                        <button
+                          type="button"
+                          className="text-xs text-gray-500 hover:text-blue-700 transition"
+                        >
+                          Forgot Password
+                        </button>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
