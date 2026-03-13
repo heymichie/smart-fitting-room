@@ -128,7 +128,7 @@ function RoomCard({ room }: { room: FittingRoom }) {
         </div>
 
         <button
-          onClick={() => setLocation("/fitting-room-details")}
+          onClick={() => setLocation(`/fitting-room-single?roomId=${encodeURIComponent(room.roomId)}&name=${encodeURIComponent(room.name)}`)}
           className="mt-auto text-sm text-gray-600 hover:text-gray-900 font-medium transition"
         >
           View details
@@ -206,7 +206,14 @@ export default function FittingRoomsPage() {
       {/* Header */}
       <header className="flex items-center justify-between px-8 pt-5 pb-4">
         <div className="flex items-center gap-4">
-          <HangerIcon />
+          <button
+            onClick={() => setLocation("/user-dashboard")}
+            className="hover:opacity-80 transition"
+            title="Go to Home"
+            aria-label="Home"
+          >
+            <HangerIcon />
+          </button>
           <div>
             <h1 className="text-white text-3xl font-bold leading-tight">
               Welcome ({user.username})

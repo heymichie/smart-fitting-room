@@ -1,12 +1,12 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { fittingRoomSessionsTable } from "@workspace/db/schema";
 
 const router: IRouter = Router();
 
 router.get("/fitting-room-sessions", async (req, res): Promise<void> => {
-  const { branchCode, page = "1", limit = "50" } = req.query;
+  const { branchCode, fittingRoomName, page = "1", limit = "50" } = req.query;
   if (!branchCode || typeof branchCode !== "string") {
     res.status(400).json({ error: "branchCode query param required" });
     return;
@@ -16,15 +16,22 @@ router.get("/fitting-room-sessions", async (req, res): Promise<void> => {
   const pageSize = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 50));
   const offset   = (pageNum - 1) * pageSize;
 
+  const condition = fittingRoomName && typeof fittingRoomName === "string"
+    ? and(
+        eq(fittingRoomSessionsTable.branchCode, branchCode),
+        eq(fittingRoomSessionsTable.fittingRoomName, fittingRoomName)
+      )
+    : eq(fittingRoomSessionsTable.branchCode, branchCode);
+
   const [sessions, countRow] = await Promise.all([
     db.select()
       .from(fittingRoomSessionsTable)
-      .where(eq(fittingRoomSessionsTable.branchCode, branchCode))
-      .orderBy(asc(fittingRoomSessionsTable.mainEntranceEntryTime))
+      .where(condition)
+      .orderBy(asc(fittingRoomSessionsTable.fittingRoomEntryTime))
       .limit(pageSize)
       .offset(offset),
 
-    db.$count(fittingRoomSessionsTable, eq(fittingRoomSessionsTable.branchCode, branchCode)),
+    db.$count(fittingRoomSessionsTable, condition),
   ]);
 
   res.json({
