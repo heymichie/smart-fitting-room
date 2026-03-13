@@ -21,3 +21,4 @@ export * from "./admin";
 export * from "./users";
 export * from "./password-reset-tokens";
 export * from "./rights-settings";
+export * from "./fitting-rooms";
