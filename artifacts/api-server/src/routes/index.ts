@@ -4,6 +4,7 @@ import adminRouter from "./admin";
 import usersRouter from "./users";
 import rightsSettingsRouter from "./rights-settings";
 import fittingRoomsRouter from "./fitting-rooms";
+import voiceRecordingsRouter from "./voice-recordings";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(adminRouter);
 router.use(usersRouter);
 router.use(rightsSettingsRouter);
 router.use(fittingRoomsRouter);
+router.use(voiceRecordingsRouter);
 
 export default router;
