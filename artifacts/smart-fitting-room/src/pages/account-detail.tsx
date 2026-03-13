@@ -18,8 +18,10 @@ export default function AccountDetail() {
   const [, params]      = useRoute("/manage-accounts/:id");
   const userId          = params?.id ? parseInt(params.id, 10) : NaN;
 
-  const [admin, setAdmin]     = useState<AdminUser | null>(null);
-  const [toast, setToast]     = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [admin, setAdmin]         = useState<AdminUser | null>(null);
+  const [toast, setToast]         = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [localEmail, setLocalEmail] = useState("");
+  const [emailDirty, setEmailDirty] = useState(false);
 
   useEffect(() => {
     const token   = localStorage.getItem("sfr_admin_token");
@@ -33,17 +35,29 @@ export default function AccountDetail() {
     { query: { enabled: !!admin && !isNaN(userId) } }
   );
 
+  /* Sync local email once user loads */
+  useEffect(() => {
+    if (user && !emailDirty) setLocalEmail(user.email ?? "");
+  }, [user, emailDirty]);
+
   const { mutate: updateUser, isPending } = useUpdateUser({
     mutation: {
-      onSuccess: () => { refetch(); },
+      onSuccess: () => { setEmailDirty(false); refetch(); },
       onError:   () => showToast("Failed to update account.", "error"),
     },
   });
 
   function showToast(msg: string, type: "success" | "error" = "success") {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 4000);
   }
+
+  /* Save email on blur if it changed */
+  const handleEmailBlur = () => {
+    if (!emailDirty || !user) return;
+    updateUser({ id: userId, data: { email: localEmail || null } });
+    showToast("Email address saved.");
+  };
 
   const handleActivate = () => {
     if (!user || user.isActive) return;
@@ -59,11 +73,16 @@ export default function AccountDetail() {
 
   const handleResetPassword = () => {
     if (!user) return;
-    if (!user.email) {
-      showToast("No email address on file for this account.", "error");
+    const emailToUse = localEmail.trim();
+    if (!emailToUse) {
+      showToast("Please enter a staff email address first.", "error");
       return;
     }
-    showToast(`Password reset prompt sent to ${user.email}.`);
+    /* Save email if it was changed, then show confirmation */
+    if (emailDirty) {
+      updateUser({ id: userId, data: { email: emailToUse } });
+    }
+    showToast(`Password reset prompt sent to ${emailToUse}.`);
   };
 
   if (!admin) return null;
@@ -94,13 +113,10 @@ export default function AccountDetail() {
         breadcrumb={`Home/Manage Account/${user.username}`}
       />
 
-      {/* Toast */}
       {toast && (
-        <div
-          className={`mx-8 mt-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all ${
-            toast.type === "error" ? "bg-red-600/80" : "bg-green-600/80"
-          }`}
-        >
+        <div className={`mx-8 mt-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-all ${
+          toast.type === "error" ? "bg-red-600/80" : "bg-green-600/80"
+        }`}>
           {toast.msg}
         </div>
       )}
@@ -110,13 +126,11 @@ export default function AccountDetail() {
 
           {/* Status badge */}
           <div className="mb-3 flex items-center gap-2">
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                user.isActive
-                  ? "bg-green-500/20 text-green-300 border border-green-500/30"
-                  : "bg-red-500/20 text-red-300 border border-red-500/30"
-              }`}
-            >
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+              user.isActive
+                ? "bg-green-500/20 text-green-300 border border-green-500/30"
+                : "bg-red-500/20 text-red-300 border border-red-500/30"
+            }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${user.isActive ? "bg-green-400" : "bg-red-400"}`} />
               {user.isActive ? "Active" : "Inactive"}
             </span>
@@ -134,26 +148,33 @@ export default function AccountDetail() {
             <ReadRow label="Fore Name(s)"    value={user.forenames} alt />
             <ReadRow label="Surname"         value={user.surname} />
             <ReadRow label="Employee Number" value={user.employeeNumber} alt />
-            {user.email && <ReadRow label="Email" value={user.email} />}
+
+            {/* Staff email address — editable */}
+            <div className="grid grid-cols-2 border-t border-white/10" style={{ backgroundColor: "#e8eaed" }}>
+              <div className="px-5 py-3 text-sm text-gray-700 font-medium border-r border-white/30 flex items-center">
+                Staff email address
+              </div>
+              <div className="px-5 py-3">
+                <input
+                  type="email"
+                  value={localEmail}
+                  onChange={(e) => { setLocalEmail(e.target.value); setEmailDirty(true); }}
+                  onBlur={handleEmailBlur}
+                  placeholder="e.g. johndoe@company.com"
+                  className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400 text-sm border-b border-gray-400/40 focus:border-blue-600 pb-0.5 transition-colors"
+                />
+              </div>
+            </div>
 
             {/* Designation */}
-            <div
-              className="grid grid-cols-2 border-t border-white/10"
-              style={{ backgroundColor: user.email ? "#dde0e6" : "#e8eaed" }}
-            >
+            <div className="grid grid-cols-2 border-t border-white/10" style={{ backgroundColor: "#dde0e6" }}>
               <div className="px-5 py-3 text-sm text-gray-700 font-medium border-r border-white/30 flex items-start pt-3.5">
                 Designation
               </div>
               <div className="px-5 py-3 flex flex-col gap-1.5">
                 {RIGHTS_OPTIONS.map((opt) => (
                   <label key={opt.value} className="flex items-center gap-2 text-sm text-gray-700 cursor-default">
-                    <input
-                      type="radio"
-                      readOnly
-                      disabled
-                      checked={user.rights === opt.value}
-                      className="accent-blue-700"
-                    />
+                    <input type="radio" readOnly disabled checked={user.rights === opt.value} className="accent-blue-700" />
                     {opt.label}
                   </label>
                 ))}
@@ -161,30 +182,16 @@ export default function AccountDetail() {
             </div>
 
             {/* Store Branch Code */}
-            <div
-              className="grid grid-cols-2 border-t border-white/10"
-              style={{ backgroundColor: user.email ? "#e8eaed" : "#dde0e6" }}
-            >
+            <div className="grid grid-cols-2 border-t border-white/10" style={{ backgroundColor: "#e8eaed" }}>
               <div className="px-5 py-3 text-sm text-gray-700 font-medium border-r border-white/30 flex items-start pt-3.5">
                 Store Branch Code
               </div>
               <div className="px-5 py-3 flex flex-col gap-1.5">
-                {(user.rights === "administrator"
-                  ? [...BRANCH_OPTIONS, "ALL"]
-                  : BRANCH_OPTIONS
-                ).map((code) => (
+                {(user.rights === "administrator" ? [...BRANCH_OPTIONS, "ALL"] : BRANCH_OPTIONS).map((code) => (
                   <label key={code} className="flex items-center gap-2 text-sm text-gray-700 cursor-default">
-                    <input
-                      type="radio"
-                      readOnly
-                      disabled
-                      checked={
-                        user.rights === "administrator"
-                          ? code === "ALL"
-                          : user.storeBranchCode === code
-                      }
-                      className="accent-blue-700"
-                    />
+                    <input type="radio" readOnly disabled
+                      checked={user.rights === "administrator" ? code === "ALL" : user.storeBranchCode === code}
+                      className="accent-blue-700" />
                     {code}
                   </label>
                 ))}
@@ -192,38 +199,28 @@ export default function AccountDetail() {
             </div>
 
             {/* Empty bottom row */}
-            <div className="grid grid-cols-2 h-8 border-t border-white/10" style={{ backgroundColor: "#e8eaed" }}>
-              <div className="border-r border-white/30" />
-              <div />
+            <div className="grid grid-cols-2 h-8 border-t border-white/10" style={{ backgroundColor: "#dde0e6" }}>
+              <div className="border-r border-white/30" /><div />
             </div>
           </div>
 
           {/* Action buttons */}
           <div className="flex gap-4 mt-6">
-            <button
-              onClick={handleActivate}
-              disabled={isPending || user.isActive}
+            <button onClick={handleActivate} disabled={isPending || user.isActive}
               className="flex-1 rounded-xl py-3.5 font-semibold text-gray-700 text-base transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
               style={{ backgroundColor: "#f0f1f3" }}
-              title={user.isActive ? "Account is already active" : "Activate this account"}
-            >
+              title={user.isActive ? "Account is already active" : "Activate this account"}>
               Active
             </button>
-            <button
-              onClick={handleDeactivate}
-              disabled={isPending || !user.isActive}
+            <button onClick={handleDeactivate} disabled={isPending || !user.isActive}
               className="flex-1 rounded-xl py-3.5 font-semibold text-gray-500 text-base transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
               style={{ backgroundColor: "#b0b5be" }}
-              title={!user.isActive ? "Account is already deactivated" : "Deactivate this account"}
-            >
+              title={!user.isActive ? "Account is already deactivated" : "Deactivate this account"}>
               Deactivate
             </button>
-            <button
-              onClick={handleResetPassword}
-              disabled={isPending}
+            <button onClick={handleResetPassword} disabled={isPending}
               className="flex-1 rounded-xl py-3.5 font-semibold text-gray-500 text-base transition hover:brightness-95 active:scale-[0.98] disabled:opacity-50"
-              style={{ backgroundColor: "#b0b5be" }}
-            >
+              style={{ backgroundColor: "#b0b5be" }}>
               Reset Password
             </button>
           </div>
@@ -235,10 +232,8 @@ export default function AccountDetail() {
 
 function ReadRow({ label, value, alt }: { label: string; value: string; alt?: boolean }) {
   return (
-    <div
-      className="grid grid-cols-2 border-t border-white/10"
-      style={{ backgroundColor: alt ? "#dde0e6" : "#e8eaed" }}
-    >
+    <div className="grid grid-cols-2 border-t border-white/10"
+      style={{ backgroundColor: alt ? "#dde0e6" : "#e8eaed" }}>
       <div className="px-5 py-3 text-sm text-gray-700 font-medium border-r border-white/30">{label}</div>
       <div className="px-5 py-3 text-sm text-gray-800">{value}</div>
     </div>
