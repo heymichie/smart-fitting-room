@@ -31,6 +31,7 @@ interface Session {
   alertTime:            string | null;
   alertAttendantId:     string | null;
   hasAlert:             boolean;
+  isActive:             boolean;
 }
 
 function userAuthHeaders() {
@@ -41,7 +42,7 @@ function userAuthHeaders() {
 function useLiveClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 30000);
+    const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
   return now;
@@ -54,7 +55,24 @@ function formatCodes(raw: string | null): string[] {
 
 function formatDuration(mins: number | null): string {
   if (mins === null || mins === undefined) return "";
-  return `${mins}mins`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m}mins`;
+  return m === 0 ? `${h}hrs` : `${h}hr ${m}mins`;
+}
+
+function liveDuration(entryTimeText: string | null, now: Date): string {
+  if (!entryTimeText || entryTimeText.length < 3) return "";
+  const hh = parseInt(entryTimeText.slice(0, entryTimeText.length - 2), 10);
+  const mm = parseInt(entryTimeText.slice(-2), 10);
+  if (isNaN(hh) || isNaN(mm)) return "";
+  const entry = new Date(now);
+  entry.setHours(hh, mm, 0, 0);
+  const diffMins = Math.max(0, Math.floor((now.getTime() - entry.getTime()) / 60000));
+  const h = Math.floor(diffMins / 60);
+  const m = diffMins % 60;
+  if (h === 0) return `${m}mins`;
+  return m === 0 ? `${h}hrs` : `${h}hr ${m}mins`;
 }
 
 function formatGarments(count: number | null): string {
@@ -269,7 +287,9 @@ export default function FittingRoomSingle() {
                           {s.fittingRoomExitTime ?? ""}
                         </td>
                         <td className="border border-gray-300 px-3 py-3 align-top">
-                          {formatDuration(s.durationMinutes)}
+                          {s.isActive
+                            ? liveDuration(s.fittingRoomEntryTime, now)
+                            : formatDuration(s.durationMinutes)}
                         </td>
                         <td className="border border-gray-300 px-3 py-3 align-top">
                           {s.alertTime ?? "-"}
