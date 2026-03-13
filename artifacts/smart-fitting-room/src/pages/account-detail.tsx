@@ -265,28 +265,33 @@ export default function AccountDetail() {
             </DetailRow>
 
             {/* Store Branch Code */}
-            <DetailRow label="Store Branch Code" alt={false}>
-              <div className="flex flex-col gap-1.5">
-                {BRANCH_OPTIONS.map((code) => {
-                  const currentRights = isEditing ? display!.rights : user.rights;
-                  const currentBranch = isEditing ? display!.storeBranchCode : user.storeBranchCode;
-                  const checked = currentRights === "administrator" ? false : currentBranch === code;
-                  return (
-                    <label key={code} className={`flex items-center gap-2 text-sm text-gray-700 ${isEditing && currentRights !== "administrator" ? "cursor-pointer" : "cursor-default"}`}>
-                      <input type="radio" name="edit-branch" value={code}
-                        checked={checked}
-                        onChange={() => isEditing && patch("storeBranchCode", code)}
-                        disabled={!isEditing || currentRights === "administrator"}
-                        className="accent-blue-700" />
-                      {code}
-                    </label>
-                  );
-                })}
-                {(isEditing ? display!.rights : user.rights) === "administrator" && (
-                  <span className="text-sm text-gray-600 italic">ALL (Administrator)</span>
-                )}
-              </div>
-            </DetailRow>
+            {(() => {
+              const currentRights = isEditing ? display!.rights : user.rights;
+              const currentBranch = isEditing ? display!.storeBranchCode : user.storeBranchCode;
+              const isAdmin = currentRights === "administrator";
+              return (
+                <div
+                  className="grid grid-cols-2 border-t border-white/10 transition-opacity"
+                  style={{ backgroundColor: "#e8eaed", opacity: isAdmin ? 0.35 : 1 }}
+                >
+                  <div className="px-5 py-3 text-sm text-gray-700 font-medium border-r border-white/30 flex items-start pt-3.5">
+                    Store Branch Code
+                  </div>
+                  <div className="px-5 py-3 flex flex-col gap-1.5">
+                    {BRANCH_OPTIONS.map((code) => (
+                      <label key={code} className={`flex items-center gap-2 text-sm text-gray-700 ${isEditing && !isAdmin ? "cursor-pointer" : "cursor-default"}`}>
+                        <input type="radio" name="edit-branch" value={code}
+                          checked={!isAdmin && currentBranch === code}
+                          onChange={() => isEditing && !isAdmin && patch("storeBranchCode", code)}
+                          disabled={!isEditing || isAdmin}
+                          className="accent-blue-700" />
+                        {code}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Empty bottom row */}
             <div className="grid grid-cols-2 h-8 border-t border-white/10" style={{ backgroundColor: "#dde0e6" }}>

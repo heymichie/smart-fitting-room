@@ -126,18 +126,29 @@ export default function CreateAccount() {
             </TableRow>
 
             {/* Store Branch Code */}
-            <TableRow label="Store Branch Code">
-              <div className="flex flex-col gap-1.5">
+            <div
+              className="grid grid-cols-2 border-t border-white/10 transition-opacity"
+              style={{
+                backgroundColor: "#e8eaed",
+                opacity: rights === "administrator" ? 0.35 : 1,
+              }}
+            >
+              <div className="px-5 py-3 text-sm text-gray-700 font-medium border-r border-white/30 flex items-start pt-3.5">
+                Store Branch Code
+              </div>
+              <div className="px-5 py-3 flex flex-col gap-1.5">
                 {BRANCH_OPTIONS.map((code) => (
-                  <label key={code} className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <label key={code} className={`flex items-center gap-2 text-sm text-gray-700 ${rights === "administrator" ? "cursor-not-allowed" : "cursor-pointer"}`}>
                     <input type="radio" name="branchCode" value={code}
-                      checked={branchCode === code} onChange={() => setBranchCode(code)}
+                      checked={branchCode === code}
+                      onChange={() => setBranchCode(code)}
+                      disabled={rights === "administrator"}
                       className="accent-blue-700" />
                     {code}
                   </label>
                 ))}
               </div>
-            </TableRow>
+            </div>
 
             {/* Empty bottom row */}
             <div className="grid grid-cols-2 h-8 border-t border-white/10" style={{ backgroundColor: "#dde0e6" }}>
