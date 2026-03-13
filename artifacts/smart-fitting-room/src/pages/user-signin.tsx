@@ -73,7 +73,7 @@ export default function UserSignIn() {
           initial={{ opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="flex flex-col justify-between rounded-3xl p-8 w-64 md:w-72 shrink-0"
+          className="flex flex-col justify-between rounded-l-3xl p-8 w-64 md:w-72 shrink-0"
           style={{ backgroundColor: "rgba(30, 67, 140, 0.92)" }}
         >
           <div className="flex flex-col items-start gap-3">
@@ -92,7 +92,7 @@ export default function UserSignIn() {
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
-          className="flex flex-col justify-center rounded-3xl px-8 py-10 w-72 md:w-80"
+          className="flex flex-col justify-center rounded-r-3xl px-8 py-10 w-72 md:w-80"
           style={{ backgroundColor: "rgba(255, 255, 255, 0.82)", backdropFilter: "blur(12px)" }}
         >
           <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-2">
