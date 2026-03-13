@@ -92,6 +92,22 @@ export default function Reports() {
     Object.values(opts).some(Boolean)
   );
 
+  const allSelected = REPORT_TYPES.every(rt =>
+    rt.options.every(opt => selection[rt.name][opt.key])
+  );
+
+  const toggleAll = () => {
+    const next = !allSelected;
+    setSelection(() => {
+      const updated: SelectionMap = {};
+      for (const rt of REPORT_TYPES) {
+        updated[rt.name] = {};
+        for (const opt of rt.options) updated[rt.name][opt.key] = next;
+      }
+      return updated;
+    });
+  };
+
   const generatePDF = async () => {
     if (!hasAnySelection) {
       toast({ title: "Nothing selected", description: "Please tick at least one column option.", variant: "destructive" });
@@ -278,7 +294,26 @@ export default function Reports() {
           {/* Header */}
           <div className="grid text-white font-bold text-sm" style={{ backgroundColor: "#111827", gridTemplateColumns: "1fr 1.6fr" }}>
             <div className="flex items-center px-5 py-3 border-r border-white/10">Report Type</div>
-            <div className="flex items-center px-5 py-3">Column Options</div>
+            <div className="flex items-center justify-between px-5 py-3">
+              <span>Column Options</span>
+              <button
+                onClick={toggleAll}
+                className="flex items-center gap-2 text-xs font-semibold transition hover:opacity-80 active:scale-95 rounded px-2.5 py-1"
+                style={{ backgroundColor: allSelected ? "#3b5fa0" : "#ffffff22", color: "#fff", border: "1px solid rgba(255,255,255,0.3)" }}
+              >
+                <span
+                  className="w-4 h-4 shrink-0 border-2 rounded flex items-center justify-center"
+                  style={{ backgroundColor: allSelected ? "#fff" : "transparent", borderColor: "#fff" }}
+                >
+                  {allSelected && (
+                    <svg viewBox="0 0 12 10" fill="none" className="w-2.5 h-2.5">
+                      <path d="M1 5l3.5 3.5L11 1" stroke="#1e3f7a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
+                {allSelected ? "Deselect All" : "Select All"}
+              </button>
+            </div>
           </div>
 
           {/* Rows */}
