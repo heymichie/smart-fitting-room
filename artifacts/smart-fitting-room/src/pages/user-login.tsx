@@ -122,7 +122,7 @@ export default function UserLogin() {
               {/* Welcome */}
               <div>
                 <h1 className="text-white text-3xl md:text-4xl font-bold leading-tight">
-                  Hello,<br />Welcome!
+                  Hello, Welcome,<br />please log in
                 </h1>
               </div>
             </motion.div>
