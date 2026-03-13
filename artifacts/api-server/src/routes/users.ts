@@ -45,9 +45,11 @@ router.post("/users", async (req, res): Promise<void> => {
     passwordResetTokenExpiry,
   }).returning();
 
-  // Send welcome email if the user has an email address
+  const appBaseUrl = getAppBaseUrl(req);
+  const setupLink = `${appBaseUrl}/user-login?token=${passwordResetToken}`;
+
+  // Attempt email (currently a no-op stub — logs only)
   if (user.email) {
-    const appBaseUrl = getAppBaseUrl(req);
     await sendWelcomeEmail({
       to: user.email,
       forenames: user.forenames,
@@ -57,7 +59,7 @@ router.post("/users", async (req, res): Promise<void> => {
     });
   }
 
-  res.status(201).json(user);
+  res.status(201).json({ ...user, setupLink });
 });
 
 router.get("/users/:id", async (req, res): Promise<void> => {

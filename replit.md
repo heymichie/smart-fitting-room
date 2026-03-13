@@ -94,3 +94,17 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+
+## Email Notifications
+
+Email sending is currently in stub/log-only mode (`artifacts/api-server/src/utils/email.ts`).
+
+When a new user account is created, the API returns a `setupLink` in the response that the admin can copy and share directly with the new staff member. The link expires after 48 hours.
+
+**To enable real email delivery later**, wire up one of these providers in `email.ts`:
+- **SendGrid** — add `SENDGRID_API_KEY` secret
+- **Resend** — add `RESEND_API_KEY` secret
+- **Gmail** — connect the Replit Gmail integration and implement the Gmail connector snippet
+
+Note: Gmail OAuth was not connected at setup time (user dismissed the flow). Remind user to connect it if email delivery is needed.
