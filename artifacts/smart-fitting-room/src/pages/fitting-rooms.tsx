@@ -87,8 +87,8 @@ function StatusBadge({ status }: { status: FittingRoom["status"] }) {
   const { label, bg } = map[status];
   return (
     <span
-      className="inline-block rounded px-6 py-1.5 text-white font-bold text-sm text-center"
-      style={{ backgroundColor: bg, minWidth: "110px" }}
+      className="block rounded-md py-2 text-white font-bold text-base text-center w-full"
+      style={{ backgroundColor: bg }}
     >
       {label}
     </span>
@@ -97,39 +97,43 @@ function StatusBadge({ status }: { status: FittingRoom["status"] }) {
 
 function RoomCard({ room }: { room: FittingRoom }) {
   const [, setLocation] = useLocation();
+  const garments = (room.garmentCount !== null && room.garmentCount !== undefined)
+    ? String(room.garmentCount).padStart(2, "0")
+    : "—";
+
   return (
     <div className="flex flex-col items-center">
-      <h3 className="text-white font-bold text-xl mb-1">{room.name}</h3>
+      <h3 className="text-white font-bold text-2xl mb-1">{room.name}</h3>
       <p className="text-white/70 text-sm mb-3">ID: {room.roomId}</p>
 
       <div
-        className="w-full rounded-lg flex flex-col items-center py-6 px-5 gap-3"
-        style={{ backgroundColor: "#d8dde6", minHeight: "200px" }}
+        className="w-full rounded-2xl flex flex-col items-center py-7 px-6 gap-4"
+        style={{ backgroundColor: "#d8dde8", minHeight: "220px" }}
       >
         <StatusBadge status={room.status} />
 
-        <div className="text-center text-sm text-gray-700 mt-1 space-y-0.5">
+        <div className="text-center text-sm text-gray-700 space-y-1 w-full">
           {room.status === "available" && (
             <p>Last Occupied: {formatDateTime(room.lastOccupiedAt)}</p>
           )}
           {room.status === "occupied" && (
             <>
               <p>Time Occupied: {formatTime(room.occupiedSince)}</p>
-              <p>Number of garments: {room.garmentCount !== null && room.garmentCount !== undefined ? String(room.garmentCount).padStart(2, "0") : "—"}</p>
+              <p>Number of garments: {garments}</p>
             </>
           )}
           {room.status === "alert" && (
             <>
               <p>Time Occupied: {formatTime(room.occupiedSince)}</p>
               <p>Time of alert: {formatTime(room.alertSince)}</p>
-              <p>Number of garments: {room.garmentCount !== null && room.garmentCount !== undefined ? String(room.garmentCount).padStart(2, "0") : "—"}</p>
+              <p>Number of garments: {garments}</p>
             </>
           )}
         </div>
 
         <button
           onClick={() => setLocation(`/fitting-room-single?roomId=${encodeURIComponent(room.roomId)}&name=${encodeURIComponent(room.name)}`)}
-          className="mt-auto text-sm text-gray-600 hover:text-gray-900 font-medium transition"
+          className="mt-auto text-sm text-gray-500 hover:text-gray-900 font-medium transition"
         >
           View details
         </button>
@@ -222,13 +226,13 @@ export default function FittingRoomsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button className="text-white/80 hover:text-white transition">
+        <div className="flex items-center gap-2">
+          <button className="text-white/80 hover:text-white transition mr-1">
             <BellIcon />
           </button>
           <button
             onClick={handleLogout}
-            className="flex flex-col items-center text-white/80 hover:text-white transition"
+            className="flex flex-col items-end text-white/80 hover:text-white transition"
           >
             <span className="font-bold text-sm tracking-wide">LOGOUT</span>
             <span className="text-xs text-white/60">{dateStr}: {timeStr}</span>
