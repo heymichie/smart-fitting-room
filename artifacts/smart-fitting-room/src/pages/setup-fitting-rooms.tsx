@@ -113,7 +113,7 @@ export default function SetupFittingRooms() {
       headers: authHeaders(),
       body: JSON.stringify({ branchCode: branch, name: `Fitting Room ${rooms.length + 1}`, location: "", status: "available" }),
     });
-    if (res.ok) setRooms(prev => [...prev, await res.json()]);
+    if (res.ok) { const room = await res.json(); setRooms(prev => [...prev, room]); }
   };
 
   const save = async (navigate: boolean) => {
