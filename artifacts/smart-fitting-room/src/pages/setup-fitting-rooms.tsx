@@ -13,16 +13,16 @@ interface FittingRoom {
   branchCode: string;
   name:       string;
   location:   string;
-  status:     "available" | "occupied" | "maintenance";
+  status:     "available" | "occupied" | "alert";
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  available:   { bg: "#22c55e", text: "#fff" },
-  occupied:    { bg: "#ef4444", text: "#fff" },
-  maintenance: { bg: "#f59e0b", text: "#fff" },
+  available: { bg: "#22c55e", text: "#fff" },
+  occupied:  { bg: "#ef4444", text: "#fff" },
+  alert:     { bg: "#f59e0b", text: "#fff" },
 };
 
-const STATUS_CYCLE: FittingRoom["status"][] = ["available", "occupied", "maintenance"];
+const STATUS_CYCLE: FittingRoom["status"][] = ["available", "occupied", "alert"];
 
 function authHeaders() {
   const token = localStorage.getItem("sfr_admin_token");

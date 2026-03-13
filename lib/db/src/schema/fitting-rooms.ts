@@ -6,7 +6,7 @@ export const fittingRoomsTable = pgTable("fitting_rooms", {
   branchCode:  text("branch_code").notNull(),
   name:        text("name").notNull(),
   location:    text("location").notNull().default(""),
-  status:      text("status", { enum: ["available", "occupied", "maintenance"] }).notNull().default("available"),
+  status:      text("status", { enum: ["available", "occupied", "alert"] }).notNull().default("available"),
   createdAt:   timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt:   timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
