@@ -266,6 +266,83 @@ export function useListUsers<
 }
 
 /**
+ * @summary Get a single user by ID
+ */
+export const getGetUserUrl = (id: number) => {
+  return `/api/users/${id}`;
+};
+
+export const getUser = async (
+  id: number,
+  options?: RequestInit,
+): Promise<User> => {
+  return customFetch<User>(getGetUserUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetUserQueryKey = (id: number) => {
+  return [`/api/users/${id}`] as const;
+};
+
+export const getGetUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUser>>> = ({
+    signal,
+  }) => getUser(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUser>>
+>;
+export type GetUserQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a single user by ID
+ */
+
+export function useGetUser<
+  TData = Awaited<ReturnType<typeof getUser>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getUser>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Update a user account
  */
 export const getUpdateUserUrl = (id: number) => {

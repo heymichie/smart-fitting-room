@@ -23,6 +23,7 @@ export const CreateUserBody = zod.object({
   forenames: zod.string(),
   surname: zod.string(),
   employeeNumber: zod.string(),
+  email: zod.string().nullish(),
   rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
   storeBranchCode: zod.string(),
   isActive: zod.boolean(),
@@ -40,10 +41,32 @@ export const ListUsersResponseItem = zod.object({
   employeeNumber: zod.string(),
   rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
   storeBranchCode: zod.string(),
+  email: zod.string().nullish(),
   isActive: zod.boolean(),
   createdAt: zod.date(),
 });
 export const ListUsersResponse = zod.array(ListUsersResponseItem);
+
+/**
+ * @summary Get a single user by ID
+ */
+export const GetUserParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetUserResponse = zod.object({
+  id: zod.number(),
+  userId: zod.string(),
+  username: zod.string(),
+  forenames: zod.string(),
+  surname: zod.string(),
+  employeeNumber: zod.string(),
+  rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
+  storeBranchCode: zod.string(),
+  email: zod.string().nullish(),
+  isActive: zod.boolean(),
+  createdAt: zod.date(),
+});
 
 /**
  * @summary Update a user account
@@ -57,6 +80,7 @@ export const UpdateUserBody = zod.object({
   forenames: zod.string().optional(),
   surname: zod.string().optional(),
   employeeNumber: zod.string().optional(),
+  email: zod.string().nullish(),
   rights: zod
     .enum(["store_manager", "store_supervisor", "administrator"])
     .optional(),
@@ -73,6 +97,7 @@ export const UpdateUserResponse = zod.object({
   employeeNumber: zod.string(),
   rights: zod.enum(["store_manager", "store_supervisor", "administrator"]),
   storeBranchCode: zod.string(),
+  email: zod.string().nullish(),
   isActive: zod.boolean(),
   createdAt: zod.date(),
 });

@@ -16,6 +16,7 @@ export interface User {
   employeeNumber: string;
   rights: UserRights;
   storeBranchCode: string;
+  email?: string | null;
   isActive: boolean;
   createdAt: Date;
 }

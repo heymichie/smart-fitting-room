@@ -51,6 +51,7 @@ export interface User {
   employeeNumber: string;
   rights: UserRights;
   storeBranchCode: string;
+  email?: string | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -69,6 +70,7 @@ export interface CreateUserRequest {
   forenames: string;
   surname: string;
   employeeNumber: string;
+  email?: string | null;
   rights: CreateUserRequestRights;
   storeBranchCode: string;
   isActive: boolean;
@@ -88,6 +90,7 @@ export interface UpdateUserRequest {
   forenames?: string;
   surname?: string;
   employeeNumber?: string;
+  email?: string | null;
   rights?: UpdateUserRequestRights;
   storeBranchCode?: string;
   isActive?: boolean;

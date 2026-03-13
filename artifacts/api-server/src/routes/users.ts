@@ -34,6 +34,14 @@ router.post("/users", async (req, res): Promise<void> => {
   res.status(201).json(user);
 });
 
+router.get("/users/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  res.json(user);
+});
+
 router.patch("/users/:id", async (req, res): Promise<void> => {
   const params = UpdateUserParams.safeParse(req.params);
   if (!params.success) {

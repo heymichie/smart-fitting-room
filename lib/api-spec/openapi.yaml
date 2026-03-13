@@ -69,6 +69,29 @@ paths:
                 items:
                   $ref: "#/components/schemas/User"
   /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get a single user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     patch:
       operationId: updateUser
       tags: [users]
@@ -260,6 +283,9 @@ components:
           enum: [store_manager, store_supervisor, administrator]
         storeBranchCode:
           type: string
+        email:
+          type: string
+          nullable: true
         isActive:
           type: boolean
         createdAt:
@@ -287,6 +313,9 @@ components:
           type: string
         employeeNumber:
           type: string
+        email:
+          type: string
+          nullable: true
         rights:
           type: string
           enum: [store_manager, store_supervisor, administrator]
@@ -313,6 +342,9 @@ components:
           type: string
         employeeNumber:
           type: string
+        email:
+          type: string
+          nullable: true
         rights:
           type: string
           enum: [store_manager, store_supervisor, administrator]

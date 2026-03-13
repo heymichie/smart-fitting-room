@@ -12,6 +12,7 @@ export interface UpdateUserRequest {
   forenames?: string;
   surname?: string;
   employeeNumber?: string;
+  email?: string | null;
   rights?: UpdateUserRequestRights;
   storeBranchCode?: string;
   isActive?: boolean;

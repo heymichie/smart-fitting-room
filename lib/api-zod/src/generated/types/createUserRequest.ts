@@ -12,6 +12,7 @@ export interface CreateUserRequest {
   forenames: string;
   surname: string;
   employeeNumber: string;
+  email?: string | null;
   rights: CreateUserRequestRights;
   storeBranchCode: string;
   isActive: boolean;
