@@ -34,8 +34,9 @@ const queryClient = new QueryClient({
 function Router() {
   return (
     <Switch>
-      {/* Root route points to the Administrator Setup page */}
-      <Route path="/" component={AdminSetup} />
+      {/* Root route: staff login */}
+      <Route path="/" component={UserSignIn} />
+      <Route path="/admin-setup" component={AdminSetup} />
       <Route path="/setup-complete" component={SetupComplete} />
       <Route path="/login" component={Login} />
       <Route path="/dashboard" component={Dashboard} />
