@@ -19,6 +19,7 @@ export default function UserSignIn() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [branchCode, setBranchCode] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -58,7 +59,7 @@ export default function UserSignIn() {
         forenames: data.forenames,
         surname:   data.surname,
         rights:    data.rights,
-        branchCode: data.branchCode,
+        branchCode: branchCode.trim() || data.branchCode,
       }));
       setLocation("/user-dashboard");
     } catch {
@@ -213,6 +214,16 @@ export default function UserSignIn() {
                 </button>
               </div>
             </div>
+
+            <input
+              type="text"
+              placeholder="Branch Code (optional)"
+              value={branchCode}
+              onChange={(e) => { setBranchCode(e.target.value); setErrorMsg(""); }}
+              className="w-full rounded-xl border border-gray-300 bg-white/70 px-4 py-3 text-center text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400 transition uppercase"
+              autoComplete="off"
+              maxLength={20}
+            />
 
             <AnimatePresence>
               {errorMsg && (
