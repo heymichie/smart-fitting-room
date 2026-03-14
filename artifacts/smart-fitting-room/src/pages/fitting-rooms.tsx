@@ -13,16 +13,17 @@ interface StoreUser {
 }
 
 interface FittingRoom {
-  id:             number;
-  roomId:         string;
-  branchCode:     string;
-  name:           string;
-  location:       string;
-  status:         "available" | "occupied" | "alert";
-  occupiedSince:  string | null;
-  alertSince:     string | null;
-  lastOccupiedAt: string | null;
-  garmentCount:   number | null;
+  id:              number;
+  roomId:          string;
+  branchCode:      string;
+  name:            string;
+  location:        string;
+  status:          "available" | "occupied" | "alert";
+  occupiedSince:   string | null;
+  alertSince:      string | null;
+  lastOccupiedAt:  string | null;
+  garmentCount:    number | null;
+  activeEntryTime: string | null;
 }
 
 function userAuthHeaders() {
@@ -38,14 +39,22 @@ function formatTime(iso: string | null): string {
   return `${hh}${mm}hrs`;
 }
 
-function formatDuration(iso: string | null, now: Date): string {
-  if (!iso) return "—";
-  const diffMs  = now.getTime() - new Date(iso).getTime();
-  const totalMins = Math.max(0, Math.floor(diffMs / 60000));
-  const hrs  = Math.floor(totalMins / 60);
-  const mins = totalMins % 60;
-  if (hrs === 0) return `${mins}min${mins !== 1 ? "s" : ""}`;
-  return mins === 0 ? `${hrs}hr${hrs !== 1 ? "s" : ""}` : `${hrs}hr ${mins}min${mins !== 1 ? "s" : ""}`;
+function formatDuration(activeEntryTime: string | null, now: Date): string {
+  // Prefer entry time text "HHMM" → parse as today's local time
+  if (activeEntryTime && activeEntryTime.length >= 3) {
+    const hh = parseInt(activeEntryTime.slice(0, activeEntryTime.length - 2), 10);
+    const mm = parseInt(activeEntryTime.slice(-2), 10);
+    if (!isNaN(hh) && !isNaN(mm)) {
+      const entry = new Date(now);
+      entry.setHours(hh, mm, 0, 0);
+      const totalMins = Math.max(0, Math.floor((now.getTime() - entry.getTime()) / 60000));
+      const hrs  = Math.floor(totalMins / 60);
+      const mins = totalMins % 60;
+      if (hrs === 0) return `${mins}mins`;
+      return mins === 0 ? `${hrs}hrs` : `${hrs}hr ${mins}mins`;
+    }
+  }
+  return "—";
 }
 
 function formatDateTime(iso: string | null): string {
@@ -128,15 +137,15 @@ function RoomCard({ room, now }: { room: FittingRoom; now: Date }) {
           )}
           {room.status === "occupied" && (
             <>
-              <p>Entry Time: {formatTime(room.occupiedSince)}</p>
-              <p>Duration: {formatDuration(room.occupiedSince, now)}</p>
+              <p>Entry Time: {room.activeEntryTime ? `${room.activeEntryTime}hrs` : formatTime(room.occupiedSince)}</p>
+              <p>Duration: {formatDuration(room.activeEntryTime, now)}</p>
               <p>Number of garments: {garments}</p>
             </>
           )}
           {room.status === "alert" && (
             <>
-              <p>Entry Time: {formatTime(room.occupiedSince)}</p>
-              <p>Duration: {formatDuration(room.occupiedSince, now)}</p>
+              <p>Entry Time: {room.activeEntryTime ? `${room.activeEntryTime}hrs` : formatTime(room.occupiedSince)}</p>
+              <p>Duration: {formatDuration(room.activeEntryTime, now)}</p>
               <p>Time of alert: {formatTime(room.alertSince)}</p>
               <p>Number of garments: {garments}</p>
             </>

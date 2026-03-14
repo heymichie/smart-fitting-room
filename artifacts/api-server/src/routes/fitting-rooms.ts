@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Response } from "express";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc, and } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
-import { fittingRoomsTable } from "@workspace/db/schema";
+import { fittingRoomsTable, fittingRoomSessionsTable } from "@workspace/db/schema";
 import { randomUUID } from "crypto";
 
 const router: IRouter = Router();
@@ -136,7 +136,24 @@ router.get("/fitting-rooms", async (req, res): Promise<void> => {
     .from(fittingRoomsTable)
     .where(eq(fittingRoomsTable.branchCode, branchCode))
     .orderBy(asc(fittingRoomsTable.createdAt));
-  res.json(rooms);
+
+  // For each occupied/alert room, attach the latest active session's entry time
+  const enriched = await Promise.all(rooms.map(async (room) => {
+    if (room.status === "available") return { ...room, activeEntryTime: null };
+    const [latestSession] = await db
+      .select({ fittingRoomEntryTime: fittingRoomSessionsTable.fittingRoomEntryTime })
+      .from(fittingRoomSessionsTable)
+      .where(and(
+        eq(fittingRoomSessionsTable.branchCode, branchCode),
+        eq(fittingRoomSessionsTable.fittingRoomName, room.name),
+        eq(fittingRoomSessionsTable.isActive, true),
+      ))
+      .orderBy(desc(fittingRoomSessionsTable.createdAt))
+      .limit(1);
+    return { ...room, activeEntryTime: latestSession?.fittingRoomEntryTime ?? null };
+  }));
+
+  res.json(enriched);
 });
 
 /* ─── Create room ────────────────────────────────────────────────────────── */
