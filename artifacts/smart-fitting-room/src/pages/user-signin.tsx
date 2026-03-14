@@ -164,7 +164,9 @@ export default function UserSignIn() {
           style={{ backgroundColor: "rgba(30, 67, 140, 0.92)" }}
         >
           <div className="flex flex-col items-start gap-3">
-            <HangerIcon />
+            <Link href="/user-dashboard" className="hover:opacity-80 transition-opacity cursor-pointer">
+              <HangerIcon />
+            </Link>
             <span className="text-white/80 text-sm font-medium tracking-wide">Smart Fitting Room</span>
           </div>
           <div className="mt-10">
