@@ -19,11 +19,8 @@ export default function UserSignIn() {
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [branchCode, setBranchCode] = useState("501");
   const [isPending, setIsPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  const BRANCH_OPTIONS = ["501", "511", "502"];
 
   // Forgot-password modal state
   const [showForgot, setShowForgot] = useState(false);
@@ -61,7 +58,7 @@ export default function UserSignIn() {
         forenames: data.forenames,
         surname:   data.surname,
         rights:    data.rights,
-        branchCode: branchCode || data.branchCode,
+        branchCode: data.branchCode,
       }));
       setLocation("/user-dashboard");
     } catch {
@@ -214,30 +211,6 @@ export default function UserSignIn() {
                 >
                   Forgot Password
                 </button>
-              </div>
-            </div>
-
-            {/* Store Branch Code */}
-            <div className="rounded-xl overflow-hidden border border-gray-200">
-              <div className="grid grid-cols-2" style={{ backgroundColor: "#e8eaed" }}>
-                <div className="px-4 py-3 text-sm text-gray-700 font-medium border-r border-gray-200 flex items-center">
-                  Store Branch Code
-                </div>
-                <div className="px-4 py-2 flex flex-col gap-1">
-                  {BRANCH_OPTIONS.map((code) => (
-                    <label key={code} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="branchCode"
-                        value={code}
-                        checked={branchCode === code}
-                        onChange={() => setBranchCode(code)}
-                        className="accent-blue-700"
-                      />
-                      {code}
-                    </label>
-                  ))}
-                </div>
               </div>
             </div>
 
