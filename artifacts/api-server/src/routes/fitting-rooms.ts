@@ -137,20 +137,46 @@ router.get("/fitting-rooms", async (req, res): Promise<void> => {
     .where(eq(fittingRoomsTable.branchCode, branchCode))
     .orderBy(asc(fittingRoomsTable.createdAt));
 
-  // For each occupied/alert room, attach the latest active session's entry time
+  // Enrich each room with session-derived status and times
   const enriched = await Promise.all(rooms.map(async (room) => {
-    if (room.status === "available") return { ...room, activeEntryTime: null };
-    const [latestSession] = await db
-      .select({ fittingRoomEntryTime: fittingRoomSessionsTable.fittingRoomEntryTime })
+    const roomCondition = and(
+      eq(fittingRoomSessionsTable.branchCode, branchCode),
+      eq(fittingRoomSessionsTable.fittingRoomName, room.name),
+    );
+
+    // 1. Check for an active (no exit) session
+    const [activeSession] = await db
+      .select({
+        fittingRoomEntryTime: fittingRoomSessionsTable.fittingRoomEntryTime,
+      })
       .from(fittingRoomSessionsTable)
-      .where(and(
-        eq(fittingRoomSessionsTable.branchCode, branchCode),
-        eq(fittingRoomSessionsTable.fittingRoomName, room.name),
-        eq(fittingRoomSessionsTable.isActive, true),
-      ))
+      .where(and(roomCondition, eq(fittingRoomSessionsTable.isActive, true)))
       .orderBy(desc(fittingRoomSessionsTable.createdAt))
       .limit(1);
-    return { ...room, activeEntryTime: latestSession?.fittingRoomEntryTime ?? null };
+
+    if (activeSession) {
+      // Active session exists — keep DB status, expose entry time for duration
+      return {
+        ...room,
+        activeEntryTime:     activeSession.fittingRoomEntryTime ?? null,
+        sessionLastExitTime: null,
+      };
+    }
+
+    // 2. No active session — find the latest closed session by exit time
+    const [lastClosed] = await db
+      .select({ fittingRoomExitTime: fittingRoomSessionsTable.fittingRoomExitTime })
+      .from(fittingRoomSessionsTable)
+      .where(and(roomCondition, eq(fittingRoomSessionsTable.isActive, false)))
+      .orderBy(desc(fittingRoomSessionsTable.fittingRoomExitTime))
+      .limit(1);
+
+    return {
+      ...room,
+      status:              "available" as const,
+      activeEntryTime:     null,
+      sessionLastExitTime: lastClosed?.fittingRoomExitTime ?? null,
+    };
   }));
 
   res.json(enriched);

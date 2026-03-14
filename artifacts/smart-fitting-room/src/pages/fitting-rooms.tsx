@@ -13,17 +13,18 @@ interface StoreUser {
 }
 
 interface FittingRoom {
-  id:              number;
-  roomId:          string;
-  branchCode:      string;
-  name:            string;
-  location:        string;
-  status:          "available" | "occupied" | "alert";
-  occupiedSince:   string | null;
-  alertSince:      string | null;
-  lastOccupiedAt:  string | null;
-  garmentCount:    number | null;
-  activeEntryTime: string | null;
+  id:                  number;
+  roomId:              string;
+  branchCode:          string;
+  name:                string;
+  location:            string;
+  status:              "available" | "occupied" | "alert";
+  occupiedSince:       string | null;
+  alertSince:          string | null;
+  lastOccupiedAt:      string | null;
+  garmentCount:        number | null;
+  activeEntryTime:     string | null;
+  sessionLastExitTime: string | null;
 }
 
 function userAuthHeaders() {
@@ -133,7 +134,7 @@ function RoomCard({ room, now }: { room: FittingRoom; now: Date }) {
 
         <div className="text-center text-sm text-gray-700 space-y-1 w-full">
           {room.status === "available" && (
-            <p>Last Occupied: {formatTime(room.lastOccupiedAt)}</p>
+            <p>Last Occupied: {room.sessionLastExitTime ? `${room.sessionLastExitTime}hrs` : formatTime(room.lastOccupiedAt)}</p>
           )}
           {room.status === "occupied" && (
             <>
