@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
+import AlertModal from "../components/AlertModal";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/[^/]*$/, "") + "/api";
 
@@ -172,6 +173,21 @@ export default function FittingRoomsPage() {
   const sseRef = useRef<EventSource | null>(null);
   const now    = useLiveClock();
 
+  const [activeAlert, setActiveAlert]   = useState<FittingRoom | null>(null);
+  const dismissedRef = useRef<Set<string>>(new Set());
+
+  const triggerAlert = (updatedRooms: FittingRoom[]) => {
+    const alertRoom = updatedRooms.find(
+      r => r.status === "alert" && !dismissedRef.current.has(r.roomId)
+    );
+    setActiveAlert(alertRoom ?? null);
+  };
+
+  const handleIgnore = () => {
+    if (activeAlert) dismissedRef.current.add(activeAlert.roomId);
+    setActiveAlert(null);
+  };
+
   useEffect(() => {
     const token   = localStorage.getItem("sfr_user_token");
     const userStr = localStorage.getItem("sfr_user");
@@ -187,7 +203,11 @@ export default function FittingRoomsPage() {
       headers: userAuthHeaders(),
     })
       .then(r => r.json())
-      .then(data => setRooms(Array.isArray(data) ? data : []))
+      .then(data => {
+        const fetched = Array.isArray(data) ? data : [];
+        setRooms(fetched);
+        triggerAlert(fetched);
+      })
       .catch(() => setRooms([]))
       .finally(() => setLoading(false));
 
@@ -198,18 +218,22 @@ export default function FittingRoomsPage() {
 
     es.addEventListener("status-update", (e) => {
       const payload = JSON.parse((e as MessageEvent).data);
-      setRooms(prev => prev.map(r =>
-        r.id === payload.id
-          ? {
-              ...r,
-              status:         payload.status,
-              occupiedSince:  "occupiedSince"  in payload ? payload.occupiedSince  : r.occupiedSince,
-              alertSince:     "alertSince"     in payload ? payload.alertSince     : r.alertSince,
-              lastOccupiedAt: "lastOccupiedAt" in payload ? payload.lastOccupiedAt : r.lastOccupiedAt,
-              garmentCount:   "garmentCount"   in payload ? payload.garmentCount   : r.garmentCount,
-            }
-          : r
-      ));
+      setRooms(prev => {
+        const updated = prev.map(r =>
+          r.id === payload.id
+            ? {
+                ...r,
+                status:         payload.status,
+                occupiedSince:  "occupiedSince"  in payload ? payload.occupiedSince  : r.occupiedSince,
+                alertSince:     "alertSince"     in payload ? payload.alertSince     : r.alertSince,
+                lastOccupiedAt: "lastOccupiedAt" in payload ? payload.lastOccupiedAt : r.lastOccupiedAt,
+                garmentCount:   "garmentCount"   in payload ? payload.garmentCount   : r.garmentCount,
+              }
+            : r
+        );
+        triggerAlert(updated);
+        return updated;
+      });
     });
 
     return () => { es.close(); };
@@ -228,6 +252,10 @@ export default function FittingRoomsPage() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#1e3a6e" }}>
+
+      {activeAlert && (
+        <AlertModal roomName={activeAlert.name} onIgnore={handleIgnore} />
+      )}
 
       {/* Header */}
       <header className="flex items-center justify-between px-8 pt-5 pb-4">
