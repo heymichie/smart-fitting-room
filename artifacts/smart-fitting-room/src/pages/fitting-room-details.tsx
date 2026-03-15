@@ -175,7 +175,15 @@ export default function FittingRoomDetails() {
             </button>
             <div>
               <h1 className="text-white text-3xl font-bold">Account: ({user.username})</h1>
-              <p className="text-white/70 text-sm mt-0.5 ml-1">Store ID: Branch {user.branchCode}</p>
+              <p className="text-white/70 text-sm mt-0.5 ml-1">
+                <button
+                  onClick={() => setLocation("/fitting-rooms")}
+                  className="hover:underline hover:text-white transition"
+                >
+                  Home
+                </button>
+                /Fitting Room Details
+              </p>
             </div>
           </div>
 
