@@ -219,7 +219,14 @@ export default function UserLogin() {
               style={{ backgroundColor: "rgba(30, 67, 140, 0.92)" }}
             >
               <div className="flex flex-col items-start gap-3">
-                <HangerIcon />
+                <button
+                  onClick={() => setLocation("/user-signin")}
+                  className="hover:opacity-80 transition cursor-pointer"
+                  title="Go to Home"
+                  aria-label="Home"
+                >
+                  <HangerIcon />
+                </button>
                 <span className="text-white/80 text-sm font-medium tracking-wide">Smart Fitting Room</span>
               </div>
               <div>

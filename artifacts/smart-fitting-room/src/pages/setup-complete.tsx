@@ -29,6 +29,12 @@ export default function SetupComplete() {
           {/* Brand row */}
           <div className="flex items-center gap-3 mb-10">
             {/* Hanger icon */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setLocation("/user-signin"); }}
+              className="hover:opacity-80 transition cursor-pointer"
+              title="Go to Home"
+              aria-label="Home"
+            >
             <svg
               viewBox="0 0 64 64"
               fill="none"
@@ -48,6 +54,7 @@ export default function SetupComplete() {
               <line x1="16" y1="42" x2="16" y2="52" stroke="white" strokeWidth="3" strokeLinecap="round" />
               <line x1="48" y1="42" x2="48" y2="52" stroke="white" strokeWidth="3" strokeLinecap="round" />
             </svg>
+            </button>
             <span className="text-white text-lg font-medium tracking-wide">
               Smart Fitting Room
             </span>

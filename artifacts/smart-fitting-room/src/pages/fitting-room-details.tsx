@@ -165,7 +165,14 @@ export default function FittingRoomDetails() {
       <header className="px-6 pt-4 pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <HangerIcon />
+            <button
+              onClick={() => setLocation("/user-dashboard")}
+              className="hover:opacity-80 transition shrink-0"
+              title="Go to Home"
+              aria-label="Home"
+            >
+              <HangerIcon />
+            </button>
             <div>
               <h1 className="text-white text-3xl font-bold">Account: ({user.username})</h1>
               <p className="text-white/70 text-sm mt-0.5 ml-1">Store ID: Branch {user.branchCode}</p>
