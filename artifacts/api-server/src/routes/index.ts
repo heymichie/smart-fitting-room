@@ -7,6 +7,7 @@ import rightsSettingsRouter from "./rights-settings";
 import fittingRoomsRouter from "./fitting-rooms";
 import fittingRoomSessionsRouter from "./fitting-room-sessions";
 import voiceRecordingsRouter from "./voice-recordings";
+import voiceCallRouter from "./voice-call";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(rightsSettingsRouter);
 router.use(fittingRoomsRouter);
 router.use(fittingRoomSessionsRouter);
 router.use(voiceRecordingsRouter);
+router.use(voiceCallRouter);
 
 export default router;

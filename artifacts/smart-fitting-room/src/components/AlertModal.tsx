@@ -1,16 +1,22 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+
+const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/[^/]*$/, "") + "/api";
+const BAR_COUNT = 24;
+const STUN = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
 interface AlertModalProps {
+  roomId:   string;
   roomName: string;
   onIgnore: () => void;
 }
 
-const BAR_COUNT = 24;
+type CallState = "idle" | "connecting" | "active" | "ended";
 
 function SpeakerIcon({ active }: { active: boolean }) {
+  const c = active ? "#1e3a6e" : "#374151";
   return (
-    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 shrink-0" stroke={active ? "#1e3a6e" : "#374151"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill={active ? "#1e3a6e" : "#374151"} stroke="none" />
+    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 shrink-0" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill={c} stroke="none" />
       <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
       <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
     </svg>
@@ -20,149 +26,235 @@ function SpeakerIcon({ active }: { active: boolean }) {
 function XIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 shrink-0" stroke="#374151" strokeWidth="2.5" strokeLinecap="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   );
 }
 
-export default function AlertModal({ roomName, onIgnore }: AlertModalProps) {
-  const [responding, setResponding] = useState(false);
-  const [bars, setBars] = useState<number[]>(new Array(BAR_COUNT).fill(0.08));
+function PhoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 shrink-0" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 16.92v3a2 2 0 01-2.18 2A19.79 19.79 0 013.08 4.18 2 2 0 015 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L9.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+    </svg>
+  );
+}
 
-  const streamRef   = useRef<MediaStream | null>(null);
-  const animRef     = useRef<number | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const ctxRef      = useRef<AudioContext | null>(null);
+function WaveViz({ bars, active, color }: { bars: number[]; active: boolean; color: string }) {
+  return (
+    <div className="flex items-end justify-center gap-[3px] w-full" style={{ height: "48px" }}>
+      {bars.map((h, i) => (
+        <div key={i} className="rounded-full" style={{
+          width: "7px",
+          height: `${Math.max(4, h * 44)}px`,
+          backgroundColor: color,
+          opacity: active ? (0.4 + h * 0.6) : 0.22,
+          transition: active ? "height 60ms ease-out" : "height 400ms ease",
+          alignSelf: "flex-end",
+        }} />
+      ))}
+    </div>
+  );
+}
 
-  const stopMic = () => {
-    if (animRef.current) cancelAnimationFrame(animRef.current);
-    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
-    if (ctxRef.current) ctxRef.current.close();
-    analyserRef.current = null;
-    ctxRef.current      = null;
-    streamRef.current   = null;
-    setBars(new Array(BAR_COUNT).fill(0.08));
-  };
+function useAnalyser(stream: MediaStream | null): number[] {
+  const [bars, setBars] = useState<number[]>(new Array(BAR_COUNT).fill(0.06));
+  const animRef  = useRef<number | null>(null);
+  const ctxRef   = useRef<AudioContext | null>(null);
 
-  const handleRespond = async () => {
-    if (responding) {
-      stopMic();
-      setResponding(false);
+  useEffect(() => {
+    if (!stream) {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      if (ctxRef.current) { ctxRef.current.close(); ctxRef.current = null; }
+      setBars(new Array(BAR_COUNT).fill(0.06));
       return;
     }
+    const ctx      = new AudioContext();
+    ctxRef.current = ctx;
+    const src      = ctx.createMediaStreamSource(stream);
+    const ana      = ctx.createAnalyser();
+    ana.fftSize = 128;
+    ana.smoothingTimeConstant = 0.78;
+    src.connect(ana);
+    const data = new Uint8Array(ana.frequencyBinCount);
+    const tick = () => {
+      ana.getByteFrequencyData(data);
+      setBars(Array.from({ length: BAR_COUNT }, (_, i) => data[Math.floor((i / BAR_COUNT) * data.length)] / 255));
+      animRef.current = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      ctx.close();
+    };
+  }, [stream]);
 
+  return bars;
+}
+
+export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalProps) {
+  const [callState, setCallState] = useState<CallState>("idle");
+  const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+
+  const pcRef    = useRef<RTCPeerConnection | null>(null);
+  const sseRef   = useRef<EventSource | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const localBars  = useAnalyser(localStream);
+  const remoteBars = useAnalyser(remoteStream);
+
+  const cleanup = useCallback(() => {
+    sseRef.current?.close();
+    pcRef.current?.close();
+    localStream?.getTracks().forEach(t => t.stop());
+    setLocalStream(null);
+    setRemoteStream(null);
+    if (audioRef.current) { audioRef.current.srcObject = null; }
+    pcRef.current  = null;
+    sseRef.current = null;
+  }, [localStream]);
+
+  const endCall = useCallback(async () => {
+    try { await fetch(`${API_BASE}/voice-call/end/${encodeURIComponent(roomId)}`, { method: "POST" }); } catch {}
+    cleanup();
+    setCallState("idle");
+  }, [roomId, cleanup]);
+
+  const startCall = async () => {
+    setCallState("connecting");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      setLocalStream(stream);
 
-      const ctx      = new AudioContext();
-      ctxRef.current = ctx;
-      const source   = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 128;
-      analyser.smoothingTimeConstant = 0.75;
-      source.connect(analyser);
-      analyserRef.current = analyser;
+      const pc = new RTCPeerConnection(STUN);
+      pcRef.current = pc;
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
-      setResponding(true);
+      const remoteMS = new MediaStream();
+      setRemoteStream(remoteMS);
+      if (!audioRef.current) audioRef.current = new Audio();
+      audioRef.current.srcObject = remoteMS;
+      audioRef.current.play().catch(() => {});
 
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      pc.ontrack = (e) => { e.streams[0]?.getTracks().forEach(t => remoteMS.addTrack(t)); };
 
-      const animate = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const newBars = Array.from({ length: BAR_COUNT }, (_, i) => {
-          const idx = Math.floor((i / BAR_COUNT) * dataArray.length);
-          return dataArray[idx] / 255;
-        });
-        setBars(newBars);
-        animRef.current = requestAnimationFrame(animate);
+      pc.onicecandidate = async (e) => {
+        if (e.candidate) {
+          await fetch(`${API_BASE}/voice-call/ice/${encodeURIComponent(roomId)}/supervisor`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(e.candidate),
+          });
+        }
       };
 
-      animate();
-    } catch {
-      alert("Microphone access is required to respond. Please allow microphone access and try again.");
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === "connected") setCallState("active");
+        if (pc.connectionState === "disconnected" || pc.connectionState === "failed") endCall();
+      };
+
+      const sse = new EventSource(`${API_BASE}/voice-call/events/${encodeURIComponent(roomId)}/supervisor`);
+      sseRef.current = sse;
+
+      sse.addEventListener("answer", async (e) => {
+        const answer = JSON.parse((e as MessageEvent).data);
+        if (pc.signalingState !== "stable") await pc.setRemoteDescription(answer);
+        setCallState("active");
+      });
+
+      sse.addEventListener("ice", async (e) => {
+        try { await pc.addIceCandidate(JSON.parse((e as MessageEvent).data)); } catch {}
+      });
+
+      sse.addEventListener("end", () => { cleanup(); setCallState("ended"); });
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await fetch(`${API_BASE}/voice-call/offer/${encodeURIComponent(roomId)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(offer),
+      });
+
+    } catch (err) {
+      console.error(err);
+      cleanup();
+      setCallState("idle");
+      alert("Microphone access is required. Please allow microphone and try again.");
     }
   };
 
-  useEffect(() => () => stopMic(), []);
+  const handleIgnore = () => { cleanup(); onIgnore(); };
 
-  const handleIgnore = () => {
-    stopMic();
-    onIgnore();
-  };
+  useEffect(() => () => cleanup(), []);
+
+  const isLive = callState === "active";
+  const isConnecting = callState === "connecting";
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.65)" }}
-    >
-      <div
-        className="rounded-3xl flex flex-col items-center py-10 px-10 gap-5 text-center"
-        style={{ backgroundColor: "#2e5096", width: "400px", maxWidth: "92vw" }}
-      >
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.68)" }}>
+      <div className="rounded-3xl flex flex-col items-center py-10 px-10 gap-4 text-center"
+        style={{ backgroundColor: "#2e5096", width: "420px", maxWidth: "93vw" }}>
+
         {/* Title */}
-        <h1
-          className="text-white font-extrabold uppercase leading-tight tracking-wide"
-          style={{
-            fontSize: "clamp(2.4rem, 8vw, 3.2rem)",
-            textShadow: "1px 1px 0 rgba(255,255,255,0.15), 2px 4px 8px rgba(0,0,0,0.45)",
-          }}
-        >
+        <h1 className="text-white font-extrabold uppercase leading-tight tracking-wide"
+          style={{ fontSize: "clamp(2.2rem, 7vw, 3rem)", textShadow: "1px 1px 0 rgba(255,255,255,0.15), 2px 4px 8px rgba(0,0,0,0.45)" }}>
           FITTING ROOM ALERT!
         </h1>
 
-        {/* Location */}
-        <p className="text-white/90 text-lg font-medium">
-          Location: {roomName}
-        </p>
+        <p className="text-white/90 text-lg font-medium">Location: {roomName}</p>
 
-        {/* Wave visualizer */}
-        <div className="flex items-end justify-center gap-[3px] w-full" style={{ height: "64px" }}>
-          {bars.map((h, i) => {
-            const height = Math.max(6, h * 60);
-            const opacity = responding ? 0.5 + h * 0.5 : 0.25;
-            return (
-              <div
-                key={i}
-                className="rounded-full"
-                style={{
-                  width: "9px",
-                  height: `${height}px`,
-                  backgroundColor: responding
-                    ? `rgba(140, 190, 255, ${opacity})`
-                    : "rgba(255,255,255,0.25)",
-                  transition: responding ? "height 60ms ease-out" : "height 300ms ease",
-                  alignSelf: "flex-end",
-                }}
-              />
-            );
-          })}
+        {/* Call status */}
+        {callState !== "idle" && (
+          <p className="text-white/70 text-sm tracking-wide">
+            {isConnecting && "Calling fitting room…"}
+            {isLive && "● Live call in progress"}
+            {callState === "ended" && "Call ended"}
+          </p>
+        )}
+
+        {/* Wave visualisers */}
+        <div className="w-full space-y-2 mt-1">
+          <div className="flex items-center gap-2">
+            <span className="text-white/50 text-xs w-16 text-right shrink-0">You</span>
+            <WaveViz bars={localBars} active={isLive || isConnecting} color="rgba(160,200,255,1)" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-white/50 text-xs w-16 text-right shrink-0">Customer</span>
+            <WaveViz bars={remoteBars} active={isLive} color="rgba(180,240,180,1)" />
+          </div>
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-4 w-full mt-1">
-          <button
-            onClick={handleRespond}
-            className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-semibold transition hover:brightness-95 active:brightness-90"
-            style={{
-              backgroundColor: responding ? "#a8c4f0" : "#c8d4ec",
-              color: "#1a2e58",
-            }}
-          >
-            <SpeakerIcon active={responding} />
-            {responding ? "Speaking…" : "Respond"}
-          </button>
+        <div className="flex gap-4 w-full mt-2">
+          {callState === "idle" || callState === "ended" ? (
+            <button onClick={startCall}
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-semibold transition hover:brightness-95 active:brightness-90"
+              style={{ backgroundColor: "#c8d4ec", color: "#1a2e58" }}>
+              <SpeakerIcon active={false} />
+              Respond
+            </button>
+          ) : (
+            <button onClick={endCall}
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-semibold transition hover:brightness-90"
+              style={{ backgroundColor: isLive ? "#e07070" : "#c8d4ec", color: isLive ? "white" : "#1a2e58" }}>
+              <PhoneIcon />
+              {isConnecting ? "Connecting…" : "End Call"}
+            </button>
+          )}
 
-          <button
-            onClick={handleIgnore}
+          <button onClick={handleIgnore}
             className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-semibold transition hover:brightness-95 active:brightness-90"
-            style={{ backgroundColor: "#c8d4ec", color: "#1a2e58" }}
-          >
+            style={{ backgroundColor: "#c8d4ec", color: "#1a2e58" }}>
             <XIcon />
             Ignore
           </button>
         </div>
+
+        {/* Panel link helper */}
+        {(callState === "idle" || callState === "ended") && (
+          <p className="text-white/40 text-xs mt-1">
+            Fitting room device: open <span className="font-mono">/fitting-room-panel?roomId={roomId}</span>
+          </p>
+        )}
       </div>
     </div>
   );

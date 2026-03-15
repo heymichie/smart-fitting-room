@@ -20,6 +20,7 @@ import UserDashboard from "@/pages/user-dashboard";
 import FittingRoomsPage from "@/pages/fitting-rooms";
 import FittingRoomDetails from "@/pages/fitting-room-details";
 import FittingRoomSingle from "@/pages/fitting-room-single";
+import FittingRoomPanel from "@/pages/fitting-room-panel";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -52,6 +53,7 @@ function Router() {
       <Route path="/fitting-rooms" component={FittingRoomsPage} />
       <Route path="/fitting-room-details" component={FittingRoomDetails} />
       <Route path="/fitting-room-single" component={FittingRoomSingle} />
+      <Route path="/fitting-room-panel" component={FittingRoomPanel} />
 
       {/* Fallback 404 */}
       <Route component={NotFound} />
