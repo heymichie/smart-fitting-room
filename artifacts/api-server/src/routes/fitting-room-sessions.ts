@@ -82,7 +82,8 @@ router.patch("/fitting-room-sessions/:id", async (req, res): Promise<void> => {
 
   const allowed = [
     "mainEntranceEntryTime", "customerId", "garmentCount", "productCodesIn",
-    "fittingRoomName", "fittingRoomEntryTime", "fittingRoomExitTime", "durationMinutes",
+    "fittingRoomName", "fittingRoomEntryTime", "fittingRoomProductCodesIn", "fittingRoomEntryScannedAt",
+    "fittingRoomExitTime", "fittingRoomProductCodesOut", "fittingRoomExitScannedAt", "durationMinutes",
     "alertTime", "alertAttendantId", "mainEntranceExitTime", "mainEntranceAlertTime",
     "productCodesOut", "exitGarmentCount", "checkoutAttendantId", "hasAlert", "isActive",
   ];

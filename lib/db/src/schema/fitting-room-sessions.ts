@@ -9,10 +9,14 @@ export const fittingRoomSessionsTable = pgTable("fitting_room_sessions", {
   garmentCount:            integer("garment_count"),
   productCodesIn:          text("product_codes_in"),
 
-  fittingRoomName:         text("fitting_room_name"),
-  fittingRoomEntryTime:    text("fitting_room_entry_time"),
-  fittingRoomExitTime:     text("fitting_room_exit_time"),
-  durationMinutes:         integer("duration_minutes"),
+  fittingRoomName:             text("fitting_room_name"),
+  fittingRoomEntryTime:        text("fitting_room_entry_time"),
+  fittingRoomProductCodesIn:   text("fitting_room_product_codes_in"),
+  fittingRoomEntryScannedAt:   timestamp("fitting_room_entry_scanned_at", { withTimezone: true }),
+  fittingRoomExitTime:         text("fitting_room_exit_time"),
+  fittingRoomProductCodesOut:  text("fitting_room_product_codes_out"),
+  fittingRoomExitScannedAt:    timestamp("fitting_room_exit_scanned_at", { withTimezone: true }),
+  durationMinutes:             integer("duration_minutes"),
 
   alertTime:               text("alert_time"),
   alertAttendantId:        text("alert_attendant_id"),

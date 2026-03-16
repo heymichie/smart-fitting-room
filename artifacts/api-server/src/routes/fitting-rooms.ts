@@ -65,14 +65,45 @@ router.get("/fitting-rooms/events", (req, res): void => {
   });
 });
 
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
+
+/** Parse a product-codes value that may be JSON array, CSV string, or raw array */
+function parseCodes(raw: unknown): string[] {
+  if (Array.isArray(raw)) return (raw as string[]).map(String);
+  if (typeof raw === "string") {
+    try { const p = JSON.parse(raw); if (Array.isArray(p)) return p.map(String); } catch {}
+    return raw.split(",").map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+/** Compare two code lists in a quantity-aware, order-independent way */
+function codesMatch(a: string[], b: string[]): boolean {
+  const sort = (arr: string[]) => [...arr].sort();
+  return JSON.stringify(sort(a)) === JSON.stringify(sort(b));
+}
+
 /* ─── IoT / RFID status push ─────────────────────────────────────────────── */
+/**
+ * POST /api/fitting-rooms/:id/status
+ *
+ * Body fields:
+ *   status         "occupied" | "available" | "alert"
+ *   source         optional label, e.g. "rfid"
+ *   garmentCount   number of garments (entry or exit count)
+ *   productCodes   string[] | JSON-string array — product codes scanned
+ *   exitGarmentCount  explicit exit count (overrides garmentCount when present on exit)
+ *
+ * Response includes:
+ *   doorOpen       boolean — true = unlock door, false = keep locked
+ *   varianceAlert  boolean — true = mismatch detected
+ *   mismatch       object  — details of discrepancy (when varianceAlert)
+ */
 router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  // garmentCount  = garments scanned in (entry) or garments scanned out (exit)
-  // exitGarmentCount = explicit exit scan count (takes priority over garmentCount on exit)
-  const { status, source, garmentCount, exitGarmentCount: bodyExitCount } = req.body;
+  const { status, source, garmentCount, exitGarmentCount: bodyExitCount, productCodes } = req.body;
   const valid = ["available", "occupied", "alert"];
   if (!status || !valid.includes(status)) {
     res.status(400).json({ error: `status must be one of: ${valid.join(", ")}` });
@@ -82,8 +113,13 @@ router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
   const [existing] = await db.select().from(fittingRoomsTable).where(eq(fittingRoomsTable.id, id)).limit(1);
   if (!existing) { res.status(404).json({ error: "Room not found" }); return; }
 
-  // Resolve exit count: explicit field takes priority, else use garmentCount on available push
-  const exitCount: number | undefined =
+  // Normalise incoming product codes
+  const scannedCodes = parseCodes(productCodes);
+  const codesJson    = scannedCodes.length ? JSON.stringify(scannedCodes) : null;
+
+  // Resolve counts
+  const entryCount: number | undefined = status === "occupied" && garmentCount !== undefined ? Number(garmentCount) : undefined;
+  const exitCount:  number | undefined =
     bodyExitCount !== undefined
       ? Number(bodyExitCount)
       : status === "available" && garmentCount !== undefined
@@ -94,53 +130,77 @@ router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
   const [activeSession] = await db
     .select()
     .from(fittingRoomSessionsTable)
-    .where(
-      and(
-        eq(fittingRoomSessionsTable.branchCode, existing.branchCode),
-        eq(fittingRoomSessionsTable.fittingRoomName, existing.name),
-        eq(fittingRoomSessionsTable.isActive, true),
-      )
-    )
+    .where(and(
+      eq(fittingRoomSessionsTable.branchCode, existing.branchCode),
+      eq(fittingRoomSessionsTable.fittingRoomName, existing.name),
+      eq(fittingRoomSessionsTable.isActive, true),
+    ))
     .orderBy(desc(fittingRoomSessionsTable.createdAt))
     .limit(1);
 
-  const now = new Date();
+  const now     = new Date();
   const timeStr = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
 
-  // ── ENTRY scan ────────────────────────────────────────────────────────────
+  let finalStatus    = status;
+  let isVarianceAlert = false;
+  let doorOpen        = true;          // door always opens on entry
+  let mismatch: Record<string, unknown> | null = null;
+
+  // ── ENTRY scan (customer entering fitting room) ───────────────────────────
   if (status === "occupied" && activeSession) {
-    const sessionUpdates: Record<string, unknown> = { fittingRoomEntryTime: timeStr };
-    if (garmentCount !== undefined) sessionUpdates.garmentCount = Number(garmentCount);
+    const sessionUpdates: Record<string, unknown> = {
+      fittingRoomEntryTime:      timeStr,
+      fittingRoomEntryScannedAt: now,
+    };
+    if (entryCount !== undefined)  sessionUpdates.garmentCount           = entryCount;
+    if (codesJson !== null)        sessionUpdates.fittingRoomProductCodesIn = codesJson;
+
     await db
       .update(fittingRoomSessionsTable)
       .set(sessionUpdates)
       .where(eq(fittingRoomSessionsTable.id, activeSession.id));
+    // Door always opens on entry
+    doorOpen = true;
   }
 
-  // ── EXIT scan ─────────────────────────────────────────────────────────────
-  let finalStatus = status;
-  let isVarianceAlert = false;
-
-  if (status === "available" && exitCount !== undefined && activeSession) {
+  // ── EXIT scan (customer attempting to leave fitting room) ─────────────────
+  if (status === "available" && activeSession) {
     const sessionUpdates: Record<string, unknown> = {
-      exitGarmentCount:    exitCount,
-      fittingRoomExitTime: timeStr,
+      fittingRoomExitTime:       timeStr,
+      fittingRoomExitScannedAt:  now,
     };
+    if (exitCount !== undefined) sessionUpdates.exitGarmentCount        = exitCount;
+    if (codesJson !== null)      sessionUpdates.fittingRoomProductCodesOut = codesJson;
 
-    // Variance check: fewer garments out than in → alert instead of available
-    const entryCount = activeSession.garmentCount;
-    if (entryCount !== null && exitCount < entryCount) {
+    // ── Comparison ──────────────────────────────────────────────────────────
+    const sessionEntryCount  = activeSession.garmentCount;
+    const sessionEntryCodes  = parseCodes(activeSession.fittingRoomProductCodesIn ?? "");
+
+    const quantityOk = exitCount === undefined || sessionEntryCount === null || exitCount === sessionEntryCount;
+    const codesOk    = scannedCodes.length === 0 || sessionEntryCodes.length === 0 || codesMatch(sessionEntryCodes, scannedCodes);
+
+    if (!quantityOk || !codesOk) {
+      // Mismatch — door stays locked, trigger alert
       finalStatus     = "alert";
       isVarianceAlert = true;
+      doorOpen        = false;
+      mismatch = {
+        entryCount:  sessionEntryCount,
+        exitCount:   exitCount ?? null,
+        entryCodes:  sessionEntryCodes,
+        exitCodes:   scannedCodes,
+        quantityOk,
+        codesOk,
+      };
+      sessionUpdates.hasAlert = true;
     } else {
-      // Clean exit — close the session
-      sessionUpdates.isActive       = false;
+      // Perfect match — door opens, session closes
+      doorOpen = true;
+      sessionUpdates.isActive        = false;
       sessionUpdates.durationMinutes = activeSession.fittingRoomEntryTime
         ? (() => {
-            const [hh, mm] = [
-              parseInt(activeSession.fittingRoomEntryTime.slice(0, -2), 10),
-              parseInt(activeSession.fittingRoomEntryTime.slice(-2),    10),
-            ];
+            const hh = parseInt(activeSession.fittingRoomEntryTime!.slice(0, -2), 10);
+            const mm = parseInt(activeSession.fittingRoomEntryTime!.slice(-2),    10);
             const entry = new Date(now);
             entry.setHours(hh, mm, 0, 0);
             return Math.max(0, Math.round((now.getTime() - entry.getTime()) / 60000));
@@ -154,37 +214,29 @@ router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
       .where(eq(fittingRoomSessionsTable.id, activeSession.id));
   }
 
-  // Pass garmentCount only for entry; on a clean exit clear it; on variance alert keep it
-  const roomGarmentCount = finalStatus === "occupied"
-    ? garmentCount
-    : finalStatus === "alert"
-      ? undefined          // keep existing room garmentCount (entry count)
-      : undefined;         // available → clear via buildStatusUpdate
-
+  // Build room update — for variance alerts keep existing garmentCount
+  const roomGarmentCount = finalStatus === "occupied" ? entryCount : undefined;
   const updates = buildStatusUpdate(existing, finalStatus, roomGarmentCount);
-
-  // For variance alerts keep the room's existing garmentCount so the card shows entry count
-  if (isVarianceAlert) {
-    delete (updates as Record<string, unknown>).garmentCount;
-  }
+  if (isVarianceAlert) delete (updates as Record<string, unknown>).garmentCount;
 
   const [room] = await db.update(fittingRoomsTable).set(updates).where(eq(fittingRoomsTable.id, id)).returning();
 
   broadcast(room.branchCode, "status-update", {
-    id:             room.id,
-    roomId:         room.roomId,
-    name:           room.name,
-    status:         room.status,
-    occupiedSince:  room.occupiedSince,
-    alertSince:     room.alertSince,
+    id:            room.id,
+    roomId:        room.roomId,
+    name:          room.name,
+    status:        room.status,
+    occupiedSince: room.occupiedSince,
+    alertSince:    room.alertSince,
     lastOccupiedAt: room.lastOccupiedAt,
-    garmentCount:   room.garmentCount,
-    source:         source ?? "iot",
-    varianceAlert:  isVarianceAlert,
-    timestamp:      now.toISOString(),
+    garmentCount:  room.garmentCount,
+    source:        source ?? "iot",
+    varianceAlert: isVarianceAlert,
+    doorOpen,
+    timestamp:     now.toISOString(),
   });
 
-  res.json({ ...room, varianceAlert: isVarianceAlert });
+  res.json({ ...room, doorOpen, varianceAlert: isVarianceAlert, mismatch });
 });
 
 /* ─── Branches list ──────────────────────────────────────────────────────── */

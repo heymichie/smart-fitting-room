@@ -19,10 +19,14 @@ interface Session {
   customerId:            string | null;
   garmentCount:          number | null;
   productCodesIn:        string | null;
-  fittingRoomName:       string | null;
-  fittingRoomEntryTime:  string | null;
-  fittingRoomExitTime:   string | null;
-  durationMinutes:       number | null;
+  fittingRoomName:            string | null;
+  fittingRoomEntryTime:       string | null;
+  fittingRoomProductCodesIn:  string | null;
+  fittingRoomEntryScannedAt:  string | null;
+  fittingRoomExitTime:        string | null;
+  fittingRoomProductCodesOut: string | null;
+  fittingRoomExitScannedAt:   string | null;
+  durationMinutes:            number | null;
   alertTime:             string | null;
   alertAttendantId:      string | null;
   mainEntranceExitTime:  string | null;
@@ -84,6 +88,19 @@ function formatCodes(raw: string | null): { lines: string[]; } {
 function formatDuration(mins: number | null): string {
   if (mins === null || mins === undefined) return "";
   return `${mins}mins`;
+}
+
+function formatScanDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const day = String(d.getDate()).padStart(2, "0");
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const mon = months[d.getMonth()];
+  const yr  = String(d.getFullYear()).slice(2);
+  const hh  = String(d.getHours()).padStart(2, "0");
+  const mm  = String(d.getMinutes()).padStart(2, "0");
+  const ss  = String(d.getSeconds()).padStart(2, "0");
+  return `${day} ${mon} ${yr}; ${hh}:${mm}:${ss}`;
 }
 
 type SortKey = "fittingRoomEntryTime" | "fittingRoomExitTime" | "durationMinutes" | "alertTime";
@@ -221,8 +238,12 @@ export default function FittingRoomDetails() {
                   <TH>Number of garments</TH>
                   <TH>Product Codes checked in</TH>
                   <TH>Fitting Room occupied</TH>
-                  <TH sortable sortK="fittingRoomEntryTime">Fitting Room Entry Time</TH>
-                  <TH sortable sortK="fittingRoomExitTime">Fitting Room Exit Time</TH>
+                  <TH sortable sortK="fittingRoomEntryTime">FR Entry Time</TH>
+                  <TH>FR Door Codes In</TH>
+                  <TH>Entry Scan Date/Time</TH>
+                  <TH sortable sortK="fittingRoomExitTime">FR Exit Time</TH>
+                  <TH>FR Door Codes Out</TH>
+                  <TH>Exit Scan Date/Time</TH>
                   <TH sortable sortK="durationMinutes">Duration</TH>
                   <TH sortable sortK="alertTime">Fitting Room Alert</TH>
                   <TH>Fitting Room Alert Attendant</TH>
@@ -237,7 +258,7 @@ export default function FittingRoomDetails() {
               <tbody>
                 {sortedSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={16} className="text-center py-8 text-gray-500 text-sm">
+                    <td colSpan={20} className="text-center py-8 text-gray-500 text-sm">
                       No sessions recorded yet.
                     </td>
                   </tr>
@@ -274,7 +295,43 @@ export default function FittingRoomDetails() {
                         </td>
 
                         <td className={tdBase}>{s.fittingRoomEntryTime ?? "—"}</td>
+
+                        {/* FR door codes in */}
+                        <td className={`${tdBase} font-mono text-xs`}>
+                          {(() => {
+                            try {
+                              const codes: string[] = JSON.parse(s.fittingRoomProductCodesIn ?? "null") ?? [];
+                              return codes.length ? codes.map((c, i) => <div key={i}>{c}</div>) : <span className="text-gray-400">—</span>;
+                            } catch { return <span className="text-gray-400">—</span>; }
+                          })()}
+                        </td>
+
+                        {/* Entry scan timestamp */}
+                        <td className={tdBase}>
+                          {s.fittingRoomEntryScannedAt
+                            ? formatScanDateTime(s.fittingRoomEntryScannedAt)
+                            : "—"}
+                        </td>
+
                         <td className={tdBase}>{s.fittingRoomExitTime ?? ""}</td>
+
+                        {/* FR door codes out */}
+                        <td className={`${tdBase} font-mono text-xs`}>
+                          {(() => {
+                            try {
+                              const codes: string[] = JSON.parse(s.fittingRoomProductCodesOut ?? "null") ?? [];
+                              return codes.length ? codes.map((c, i) => <div key={i}>{c}</div>) : <span className="text-gray-400">—</span>;
+                            } catch { return <span className="text-gray-400">—</span>; }
+                          })()}
+                        </td>
+
+                        {/* Exit scan timestamp */}
+                        <td className={tdBase}>
+                          {s.fittingRoomExitScannedAt
+                            ? formatScanDateTime(s.fittingRoomExitScannedAt)
+                            : "—"}
+                        </td>
+
                         <td className={tdBase}>{formatDuration(s.durationMinutes)}</td>
 
                         {/* alert time — red if alert */}
