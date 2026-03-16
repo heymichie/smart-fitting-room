@@ -513,14 +513,17 @@ router.post("/fitting-rooms/entrance", async (req, res): Promise<void> => {
 
 /* ─── Resolve a main entrance alert ─────────────────────────────────────── */
 router.post("/fitting-rooms/entrance/resolve", async (req, res): Promise<void> => {
-  const { sessionId } = req.body;
+  const { sessionId, employeeId } = req.body;
   const sid = Number(sessionId);
   if (isNaN(sid)) { res.status(400).json({ error: "Invalid sessionId" }); return; }
 
   const now = new Date();
   const [updated] = await db
     .update(fittingRoomSessionsTable)
-    .set({ mainEntranceAlertResolvedAt: now })
+    .set({
+      mainEntranceAlertResolvedAt: now,
+      ...(employeeId ? { alertAttendantId: String(employeeId) } : {}),
+    })
     .where(eq(fittingRoomSessionsTable.id, sid))
     .returning();
 

@@ -29,6 +29,8 @@ interface AlertSession {
   exitGarmentCount:            number | null;
   hasAlert:                    boolean;
   cctvClipUrl:                 string | null;
+  alertAttendantId:            string | null;
+  mainEntranceAlertResolvedAt: string | null;
   createdAt:                   string;
 }
 
@@ -163,6 +165,7 @@ export default function AlertsPage() {
                   <th className="text-left px-4 py-3 font-bold text-gray-800">Qty In / Out</th>
                   <th className="text-left px-4 py-3 font-bold text-gray-800 text-red-700">Missing Codes</th>
                   <th className="text-left px-4 py-3 font-bold text-gray-800">Alert Type</th>
+                  <th className="text-left px-4 py-3 font-bold text-gray-800">Resolved By</th>
                   <th className="text-left px-4 py-3 font-bold text-gray-800">CCTV</th>
                 </tr>
               </thead>
@@ -219,6 +222,23 @@ export default function AlertsPage() {
                         <span className={`text-xs font-bold px-2 py-1 rounded ${isEntrance ? "bg-red-200 text-red-800" : "bg-orange-200 text-orange-800"}`}>
                           {isEntrance ? "Entrance" : "Fitting Room"}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {s.alertAttendantId ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-mono text-xs font-semibold text-gray-900">{s.alertAttendantId}</span>
+                            {s.mainEntranceAlertResolvedAt && (
+                              <span className="text-xs text-gray-500">{fmtTime(s.mainEntranceAlertResolvedAt)}</span>
+                            )}
+                          </div>
+                        ) : s.mainEntranceAlertResolvedAt ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-gray-400 italic">—</span>
+                            <span className="text-xs text-gray-500">{fmtTime(s.mainEntranceAlertResolvedAt)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">Pending</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {s.cctvClipUrl ? (

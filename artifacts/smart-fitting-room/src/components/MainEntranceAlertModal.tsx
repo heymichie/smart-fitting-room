@@ -76,10 +76,12 @@ export default function MainEntranceAlertModal({ alert, onClose }: Props) {
   const handleResolve = useCallback(async () => {
     setResolving(true);
     try {
+      let employeeId: string | null = null;
+      try { employeeId = JSON.parse(localStorage.getItem("sfr_user") ?? "null")?.userId ?? null; } catch { /* ignore */ }
       await fetch(`${API_BASE}/fitting-rooms/entrance/resolve`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ sessionId: alert.sessionId }),
+        body:    JSON.stringify({ sessionId: alert.sessionId, ...(employeeId ? { employeeId } : {}) }),
       });
     } catch { /* ignore */ }
     setResolving(false);
