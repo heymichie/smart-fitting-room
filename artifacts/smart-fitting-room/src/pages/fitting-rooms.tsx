@@ -100,6 +100,105 @@ const BellIcon = () => (
   </svg>
 );
 
+interface Notification {
+  id:       string;
+  type:     "room-alert" | "entrance-alert";
+  title:    string;
+  subtitle: string;
+  time:     string;
+  read:     boolean;
+}
+
+function NotificationBell({
+  notifications,
+  open,
+  onToggle,
+  onMarkAllRead,
+  onNavigateAlerts,
+}: {
+  notifications: Notification[];
+  open: boolean;
+  onToggle: () => void;
+  onMarkAllRead: () => void;
+  onNavigateAlerts: () => void;
+}) {
+  const unread = notifications.filter(n => !n.read).length;
+  return (
+    <div className="relative">
+      <button
+        onClick={onToggle}
+        className="relative text-white/80 hover:text-white transition mr-1 p-1"
+        aria-label="Notifications"
+      >
+        <BellIcon />
+        {unread > 0 && (
+          <span
+            className="absolute -top-1 -right-1 text-white font-bold rounded-full flex items-center justify-center"
+            style={{ backgroundColor: "#e74c3c", fontSize: "0.65rem", minWidth: "18px", height: "18px", padding: "0 4px" }}
+          >
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-2 rounded-2xl shadow-2xl z-50 overflow-hidden"
+          style={{ backgroundColor: "#1e3a6e", border: "1px solid rgba(255,255,255,0.15)", width: 320 }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
+            <span className="text-white font-bold text-sm">Notifications</span>
+            {unread > 0 && (
+              <button onClick={onMarkAllRead} className="text-white/50 hover:text-white text-xs transition">
+                Mark all read
+              </button>
+            )}
+          </div>
+
+          <div style={{ maxHeight: 320, overflowY: "auto" }}>
+            {notifications.length === 0 ? (
+              <p className="text-white/40 text-xs text-center py-8">No alerts yet</p>
+            ) : (
+              notifications.map(n => (
+                <div key={n.id}
+                  className="px-4 py-3 border-b flex gap-3 items-start"
+                  style={{
+                    borderColor: "rgba(255,255,255,0.08)",
+                    backgroundColor: n.read ? "transparent" : "rgba(255,255,255,0.06)",
+                  }}
+                >
+                  <div
+                    className="shrink-0 mt-0.5 rounded-full"
+                    style={{
+                      width: 8, height: 8, marginTop: 6,
+                      backgroundColor: n.type === "entrance-alert" ? "#e74c3c" : "#e6a817",
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-xs font-semibold leading-snug">{n.title}</p>
+                    <p className="text-white/50 text-xs mt-0.5 leading-snug">{n.subtitle}</p>
+                    <p className="text-white/30 text-xs mt-1">{n.time}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="px-4 py-3">
+            <button
+              onClick={() => { onToggle(); onNavigateAlerts(); }}
+              className="w-full text-center text-xs font-semibold transition"
+              style={{ color: "rgba(160,200,255,0.9)" }}
+            >
+              View All Alerts →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusBadge({ status }: { status: FittingRoom["status"] }) {
   const map = {
     available: { label: "Vacant",   bg: "#27ae60" },
@@ -176,7 +275,13 @@ export default function FittingRoomsPage() {
 
   const [activeAlert, setActiveAlert]         = useState<FittingRoom | null>(null);
   const [entranceAlert, setEntranceAlert]     = useState<EntranceAlertPayload | null>(null);
+  const [notifications, setNotifications]     = useState<Notification[]>([]);
+  const [bellOpen, setBellOpen]               = useState(false);
   const dismissedRef = useRef<Set<string>>(new Set());
+
+  const addNotification = (n: Omit<Notification, "id" | "read">) => {
+    setNotifications(prev => [{ ...n, id: `${Date.now()}-${Math.random()}`, read: false }, ...prev].slice(0, 50));
+  };
 
   const triggerAlert = (updatedRooms: FittingRoom[]) => {
     const alertRoom = updatedRooms.find(
@@ -234,10 +339,15 @@ export default function FittingRoomsPage() {
               }
             : r
         );
-        // If a room just transitioned INTO alert (was not alert before), clear its
-        // dismissed status so the modal fires again for this new alert event.
         if (payload.status === "alert" && prevRoom && prevRoom.status !== "alert") {
           dismissedRef.current.delete(payload.roomId);
+          const now = new Date();
+          addNotification({
+            type:     "room-alert",
+            title:    `Alert: ${payload.name ?? "Fitting Room"}`,
+            subtitle: payload.varianceAlert ? "Garment variance detected" : "Alert triggered",
+            time:     `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`,
+          });
         }
         triggerAlert(updated);
         return updated;
@@ -248,6 +358,14 @@ export default function FittingRoomsPage() {
     es.addEventListener("entrance-alert", (e) => {
       const payload = JSON.parse((e as MessageEvent).data) as EntranceAlertPayload;
       setEntranceAlert(payload);
+      addNotification({
+        type:     "entrance-alert",
+        title:    "Main Entrance Alert!",
+        subtitle: `Customer ${payload.customerId ?? "unknown"} — code mismatch at exit`,
+        time:     payload.alertTime
+          ? payload.alertTime.padStart(4,"0").replace(/^(\d{2})(\d{2})$/, "$1:$2")
+          : new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
+      });
     });
 
     // CCTV clip delivered — update current entrance alert if it belongs to same session
@@ -318,9 +436,13 @@ export default function FittingRoomsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="text-white/80 hover:text-white transition mr-1">
-            <BellIcon />
-          </button>
+          <NotificationBell
+            notifications={notifications}
+            open={bellOpen}
+            onToggle={() => setBellOpen(v => !v)}
+            onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+            onNavigateAlerts={() => setLocation("/alerts")}
+          />
           <button
             onClick={handleLogout}
             className="flex flex-col items-end text-white/80 hover:text-white transition"

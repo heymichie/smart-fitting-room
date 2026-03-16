@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, or, isNotNull } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { fittingRoomSessionsTable, fittingRoomsTable } from "@workspace/db/schema";
 import { broadcastRoomEvent } from "../lib/roomEvents";
@@ -149,6 +149,36 @@ router.patch("/fitting-room-sessions/:id", async (req, res): Promise<void> => {
   }
 
   res.json(session);
+});
+
+/* ─── GET /api/alerts ─────────────────────────────────────────────────────── */
+/**
+ * Returns all sessions that have either a fitting-room alert or a main
+ * entrance alert, ordered newest-first (by createdAt).
+ */
+router.get("/alerts", async (req, res): Promise<void> => {
+  const { branchCode } = req.query;
+  if (!branchCode || typeof branchCode !== "string") {
+    res.status(400).json({ error: "branchCode query param required" });
+    return;
+  }
+
+  const sessions = await db
+    .select()
+    .from(fittingRoomSessionsTable)
+    .where(
+      and(
+        eq(fittingRoomSessionsTable.branchCode, branchCode),
+        or(
+          eq(fittingRoomSessionsTable.hasAlert, true),
+          isNotNull(fittingRoomSessionsTable.mainEntranceAlertTime),
+          isNotNull(fittingRoomSessionsTable.alertTime),
+        )
+      )
+    )
+    .orderBy(asc(fittingRoomSessionsTable.createdAt));
+
+  res.json(sessions.reverse());
 });
 
 export default router;

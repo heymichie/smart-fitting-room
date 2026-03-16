@@ -41,6 +41,14 @@ function PhoneIcon() {
   );
 }
 
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 shrink-0">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+    </svg>
+  );
+}
+
 function WaveViz({ bars, active, color }: { bars: number[]; active: boolean; color: string }) {
   return (
     <div className="flex items-end justify-center gap-[3px] w-full" style={{ height: "48px" }}>
@@ -74,7 +82,10 @@ function useAnalyser(stream: MediaStream | null): number[] {
 
   useEffect(() => {
     if (animRef.current) cancelAnimationFrame(animRef.current);
-    if (ctxRef.current) { ctxRef.current.close(); ctxRef.current = null; }
+    if (ctxRef.current) {
+      if (ctxRef.current.state !== "closed") ctxRef.current.close().catch(() => {});
+      ctxRef.current = null;
+    }
 
     if (!stream || stream.getAudioTracks().length === 0) {
       setBars(new Array(BAR_COUNT).fill(0.06));
@@ -334,9 +345,9 @@ export default function AlertModal({ roomId, roomName, branchCode, roomDbId, onI
           ) : (
             <button onClick={endCall}
               className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl font-semibold transition hover:brightness-90"
-              style={{ backgroundColor: isLive ? "#e07070" : "#c8d4ec", color: isLive ? "white" : "#1a2e58" }}>
-              <PhoneIcon />
-              {isConnecting ? "Connecting…" : "End Call"}
+              style={{ backgroundColor: "#e07070", color: "white" }}>
+              <StopIcon />
+              Stop
             </button>
           )}
 

@@ -429,15 +429,25 @@ router.post("/fitting-rooms/entrance", async (req, res): Promise<void> => {
       mainEntranceEntryTime:       timeStr,
       mainEntranceEntryScannedAt:  now,
     };
-    if (garmentCount !== undefined) upd.garmentCount             = Number(garmentCount);
+    if (garmentCount !== undefined) upd.garmentCount               = Number(garmentCount);
     if (codesJson !== null)         upd.mainEntranceProductCodesIn = codesJson;
 
-    await db
+    // Auto-assign a customer ID if the session doesn't have one yet
+    let assignedCustomerId = session.customerId;
+    if (!assignedCustomerId) {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const uid   = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+      assignedCustomerId = `CID-${uid}`;
+      upd.customerId = assignedCustomerId;
+    }
+
+    const [updated] = await db
       .update(fittingRoomSessionsTable)
       .set(upd)
-      .where(eq(fittingRoomSessionsTable.id, sid));
+      .where(eq(fittingRoomSessionsTable.id, sid))
+      .returning();
 
-    res.json({ doorOpen: true, varianceAlert: false, mismatch: null });
+    res.json({ doorOpen: true, varianceAlert: false, mismatch: null, customerId: updated?.customerId ?? assignedCustomerId });
     return;
   }
 

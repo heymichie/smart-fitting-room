@@ -34,6 +34,7 @@ const tilesByRole: Record<string, { label: string; description: string; icon: JS
     {
       label: "Alerts",
       description: "View and respond to fitting room notifications",
+      route: "/alerts",
       icon: (
         <svg viewBox="0 0 48 48" fill="none" className="w-10 h-10" stroke="currentColor" strokeWidth="2">
           <path d="M24 6C17 6 12 11 12 18v8l-3 5h30l-3-5v-8c0-7-5-12-12-12z" strokeLinecap="round" strokeLinejoin="round"/>
