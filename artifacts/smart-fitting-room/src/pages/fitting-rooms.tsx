@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useLocation } from "wouter";
 import AlertModal from "../components/AlertModal";
+import MainEntranceAlertModal, { type EntranceAlertPayload } from "../components/MainEntranceAlertModal";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/[^/]*$/, "") + "/api";
 
@@ -173,7 +174,8 @@ export default function FittingRoomsPage() {
   const sseRef = useRef<EventSource | null>(null);
   const now    = useLiveClock();
 
-  const [activeAlert, setActiveAlert]   = useState<FittingRoom | null>(null);
+  const [activeAlert, setActiveAlert]         = useState<FittingRoom | null>(null);
+  const [entranceAlert, setEntranceAlert]     = useState<EntranceAlertPayload | null>(null);
   const dismissedRef = useRef<Set<string>>(new Set());
 
   const triggerAlert = (updatedRooms: FittingRoom[]) => {
@@ -242,6 +244,26 @@ export default function FittingRoomsPage() {
       });
     });
 
+    // Main entrance alert
+    es.addEventListener("entrance-alert", (e) => {
+      const payload = JSON.parse((e as MessageEvent).data) as EntranceAlertPayload;
+      setEntranceAlert(payload);
+    });
+
+    // CCTV clip delivered — update current entrance alert if it belongs to same session
+    es.addEventListener("entrance-cctv-ready", (e) => {
+      const { sessionId, cctvClipUrl } = JSON.parse((e as MessageEvent).data);
+      setEntranceAlert(prev =>
+        prev && prev.sessionId === sessionId ? { ...prev, cctvClipUrl } : prev
+      );
+    });
+
+    // Alert resolved by another terminal
+    es.addEventListener("entrance-alert-resolved", (e) => {
+      const { sessionId } = JSON.parse((e as MessageEvent).data);
+      setEntranceAlert(prev => (prev && prev.sessionId === sessionId ? null : prev));
+    });
+
     return () => { es.close(); };
   }, [user]);
 
@@ -266,6 +288,13 @@ export default function FittingRoomsPage() {
           branchCode={activeAlert.branchCode}
           roomDbId={activeAlert.id}
           onIgnore={handleIgnore}
+        />
+      )}
+
+      {entranceAlert && (
+        <MainEntranceAlertModal
+          alert={entranceAlert}
+          onClose={() => setEntranceAlert(null)}
         />
       )}
 

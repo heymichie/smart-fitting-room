@@ -374,4 +374,182 @@ router.delete("/fitting-rooms/:id", async (req, res): Promise<void> => {
   res.status(204).end();
 });
 
+/* ─── Main Fitting Room Entrance IoT scan ────────────────────────────────── */
+/**
+ * POST /api/fitting-rooms/entrance
+ *
+ * Called by the RFID/IoT device at the MAIN fitting room entrance.
+ *
+ * Body:
+ *   direction      "in"  — customer entering the fitting room area
+ *                  "out" — customer trying to leave
+ *   sessionId      number  — DB id of the active session
+ *   branchCode     string
+ *   productCodes   string[] | JSON string — product codes scanned
+ *   garmentCount   number
+ *   source         optional, e.g. "rfid"
+ *
+ * Response includes:
+ *   doorOpen       boolean — true = unlock door
+ *   varianceAlert  boolean — true = mismatch detected
+ *   mismatch       object | null
+ */
+router.post("/fitting-rooms/entrance", async (req, res): Promise<void> => {
+  const { direction, sessionId, branchCode, productCodes, garmentCount, source } = req.body;
+
+  if (!direction || !["in", "out"].includes(direction)) {
+    res.status(400).json({ error: "direction must be 'in' or 'out'" });
+    return;
+  }
+  if (!sessionId || !branchCode) {
+    res.status(400).json({ error: "sessionId and branchCode are required" });
+    return;
+  }
+
+  const sid = Number(sessionId);
+  if (isNaN(sid)) { res.status(400).json({ error: "Invalid sessionId" }); return; }
+
+  const [session] = await db
+    .select()
+    .from(fittingRoomSessionsTable)
+    .where(eq(fittingRoomSessionsTable.id, sid))
+    .limit(1);
+
+  if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+  if (session.branchCode !== branchCode) { res.status(403).json({ error: "Branch code mismatch" }); return; }
+
+  const scannedCodes = parseCodes(productCodes);
+  const codesJson    = scannedCodes.length ? JSON.stringify(scannedCodes) : null;
+  const now          = new Date();
+  const timeStr      = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
+  // ── ENTRY ─────────────────────────────────────────────────────────────────
+  if (direction === "in") {
+    const upd: Record<string, unknown> = {
+      mainEntranceEntryTime:       timeStr,
+      mainEntranceEntryScannedAt:  now,
+    };
+    if (garmentCount !== undefined) upd.garmentCount             = Number(garmentCount);
+    if (codesJson !== null)         upd.mainEntranceProductCodesIn = codesJson;
+
+    await db
+      .update(fittingRoomSessionsTable)
+      .set(upd)
+      .where(eq(fittingRoomSessionsTable.id, sid));
+
+    res.json({ doorOpen: true, varianceAlert: false, mismatch: null });
+    return;
+  }
+
+  // ── EXIT ──────────────────────────────────────────────────────────────────
+  const entryCodes  = parseCodes(session.mainEntranceProductCodesIn ?? session.productCodesIn ?? "");
+  const entryCount  = session.garmentCount;
+
+  const quantityOk  = garmentCount === undefined || entryCount === null || Number(garmentCount) === entryCount;
+  const codesOk     = scannedCodes.length === 0 || entryCodes.length === 0 || codesMatch(entryCodes, scannedCodes);
+
+  const upd: Record<string, unknown> = {
+    mainEntranceExitTime:        timeStr,
+    mainEntranceExitScannedAt:   now,
+    mainEntranceProductCodesOut: codesJson,
+  };
+  if (garmentCount !== undefined) upd.exitGarmentCount = Number(garmentCount);
+
+  let doorOpen        = true;
+  let isVarianceAlert = false;
+  let mismatch: Record<string, unknown> | null = null;
+
+  if (!quantityOk || !codesOk) {
+    doorOpen        = false;
+    isVarianceAlert = true;
+    upd.mainEntranceAlertTime = timeStr;
+    upd.hasAlert              = true;
+    mismatch = {
+      entryCount:  entryCount,
+      exitCount:   garmentCount !== undefined ? Number(garmentCount) : null,
+      entryCodes,
+      exitCodes:   scannedCodes,
+      quantityOk,
+      codesOk,
+    };
+  }
+
+  const [updated] = await db
+    .update(fittingRoomSessionsTable)
+    .set(upd)
+    .where(eq(fittingRoomSessionsTable.id, sid))
+    .returning();
+
+  if (isVarianceAlert && updated) {
+    broadcast(branchCode, "entrance-alert", {
+      sessionId:   updated.id,
+      branchCode:  updated.branchCode,
+      customerId:  updated.customerId,
+      alertTime:   timeStr,
+      entryCodes,
+      exitCodes:   scannedCodes,
+      entryCount:  entryCount,
+      exitCount:   garmentCount !== undefined ? Number(garmentCount) : null,
+      quantityOk,
+      codesOk,
+      cctvClipUrl: null,
+      source:      source ?? "rfid",
+      timestamp:   now.toISOString(),
+    });
+  }
+
+  res.json({ doorOpen, varianceAlert: isVarianceAlert, mismatch, beep: isVarianceAlert });
+});
+
+/* ─── Resolve a main entrance alert ─────────────────────────────────────── */
+router.post("/fitting-rooms/entrance/resolve", async (req, res): Promise<void> => {
+  const { sessionId } = req.body;
+  const sid = Number(sessionId);
+  if (isNaN(sid)) { res.status(400).json({ error: "Invalid sessionId" }); return; }
+
+  const now = new Date();
+  const [updated] = await db
+    .update(fittingRoomSessionsTable)
+    .set({ mainEntranceAlertResolvedAt: now })
+    .where(eq(fittingRoomSessionsTable.id, sid))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Session not found" }); return; }
+
+  broadcast(updated.branchCode, "entrance-alert-resolved", {
+    sessionId: updated.id,
+    resolvedAt: now.toISOString(),
+  });
+
+  res.json({ ok: true, resolvedAt: now.toISOString() });
+});
+
+/* ─── CCTV clip push (called by CCTV system when clip is ready) ─────────── */
+router.post("/fitting-rooms/entrance/cctv", async (req, res): Promise<void> => {
+  const { sessionId, clipUrl, branchCode } = req.body;
+  const sid = Number(sessionId);
+  if (isNaN(sid) || !clipUrl) {
+    res.status(400).json({ error: "sessionId and clipUrl are required" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(fittingRoomSessionsTable)
+    .set({ cctvClipUrl: String(clipUrl) })
+    .where(eq(fittingRoomSessionsTable.id, sid))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Session not found" }); return; }
+
+  // Notify dashboard so CCTV clip appears without refresh
+  if (branchCode) {
+    broadcast(String(branchCode), "entrance-cctv-ready", {
+      sessionId: updated.id,
+      cctvClipUrl: updated.cctvClipUrl,
+    });
+  }
+
+  res.json({ ok: true });
+});
+
 export default router;

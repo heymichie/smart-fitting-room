@@ -96,7 +96,7 @@ function useAnalyser(stream: MediaStream | null): number[] {
     tick();
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
-      ctx.close();
+      if (ctx.state !== "closed") ctx.close().catch(() => {});
     };
   }, [stream, trackCount]);
 
