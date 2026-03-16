@@ -472,12 +472,37 @@ export default function FittingRoomsPage() {
               {rooms.map(room => <RoomCard key={room.id} room={room} now={now} />)}
             </div>
 
-            <button
-              onClick={() => setLocation("/fitting-room-details")}
-              className="mt-8 text-white/80 hover:text-white text-sm underline underline-offset-2 transition"
-            >
-              View Full Fitting Room Details
-            </button>
+            <div className="mt-8 flex flex-col items-center gap-3">
+              <button
+                onClick={() => setLocation("/fitting-room-details")}
+                className="text-white/80 hover:text-white text-sm underline underline-offset-2 transition"
+              >
+                View Full Fitting Room Details
+              </button>
+
+              <button
+                onClick={() => setEntranceAlert({
+                  sessionId:   1,
+                  branchCode:  user?.branchCode ?? "DEMO",
+                  customerId:  "CID-X7K3M2",
+                  alertTime:   "1617",
+                  entryCodes:  ["1053578","1055767","1055767"],
+                  exitCodes:   ["1053578"],
+                  entryCount:  3,
+                  exitCount:   1,
+                  quantityOk:  false,
+                  codesOk:     false,
+                  cctvClipUrl: null,
+                })}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl font-semibold text-sm transition hover:brightness-90"
+                style={{ backgroundColor: "#dd0000", color: "white" }}
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                  <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm0 14a6 6 0 110-12 6 6 0 010 12zm-1-5h2V7H9v4zm0 2h2v-2H9v2z"/>
+                </svg>
+                Preview Entrance Alert
+              </button>
+            </div>
           </>
         )}
       </main>
