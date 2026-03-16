@@ -20,6 +20,7 @@ export const fittingRoomSessionsTable = pgTable("fitting_room_sessions", {
   mainEntranceExitTime:    text("main_entrance_exit_time"),
   mainEntranceAlertTime:   text("main_entrance_alert_time"),
   productCodesOut:         text("product_codes_out"),
+  exitGarmentCount:        integer("exit_garment_count"),
   checkoutAttendantId:     text("checkout_attendant_id"),
 
   hasAlert:                boolean("has_alert").notNull().default(false),

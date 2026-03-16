@@ -1,31 +1,15 @@
-import { Router, type IRouter, type Response } from "express";
+import { Router, type IRouter } from "express";
 import { eq, asc, desc, and } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { fittingRoomsTable, fittingRoomSessionsTable } from "@workspace/db/schema";
 import { randomUUID } from "crypto";
+import { addSseClient, removeSseClient, broadcastRoomEvent } from "../lib/roomEvents";
 
 const router: IRouter = Router();
 
-/* ─── SSE client registry ────────────────────────────────────────────────── */
-const sseClients = new Map<string, Set<Response>>();
-
-function addClient(branchCode: string, res: Response) {
-  if (!sseClients.has(branchCode)) sseClients.set(branchCode, new Set());
-  sseClients.get(branchCode)!.add(res);
-}
-
-function removeClient(branchCode: string, res: Response) {
-  sseClients.get(branchCode)?.delete(res);
-}
-
-function broadcast(branchCode: string, event: string, data: unknown) {
-  const clients = sseClients.get(branchCode);
-  if (!clients || clients.size === 0) return;
-  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const client of clients) {
-    try { client.write(payload); } catch { /* client disconnected */ }
-  }
-}
+const addClient    = addSseClient;
+const removeClient = removeSseClient;
+const broadcast    = (bc: string, ev: string, data: unknown) => broadcastRoomEvent(bc, ev, data);
 
 /* ─── Derive timestamp updates for status transitions ─────────────────────── */
 function buildStatusUpdate(

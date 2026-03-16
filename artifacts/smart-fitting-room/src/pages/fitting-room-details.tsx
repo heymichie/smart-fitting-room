@@ -28,6 +28,7 @@ interface Session {
   mainEntranceExitTime:  string | null;
   mainEntranceAlertTime: string | null;
   productCodesOut:       string | null;
+  exitGarmentCount:      number | null;
   checkoutAttendantId:   string | null;
   hasAlert:              boolean;
   isActive:              boolean;
@@ -228,13 +229,15 @@ export default function FittingRoomDetails() {
                   <TH>Main Fitting Room Entrance – Exit Time</TH>
                   <TH>Main Fitting Room Entrance Alert</TH>
                   <TH>Product Codes Checked out</TH>
+                  <TH>Garments Out</TH>
+                  <TH>Variance</TH>
                   <TH>Alert Attendant</TH>
                 </tr>
               </thead>
               <tbody>
                 {sortedSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="text-center py-8 text-gray-500 text-sm">
+                    <td colSpan={16} className="text-center py-8 text-gray-500 text-sm">
                       No sessions recorded yet.
                     </td>
                   </tr>
@@ -287,6 +290,27 @@ export default function FittingRoomDetails() {
                         <td className={`${tdBase} ${rowChecked && codesOut.lines.length ? "text-red-600 font-semibold" : ""}`}>
                           {codesOut.lines.length ? codesOut.lines.map((c, i) => <div key={i}>{c}</div>) : ""}
                         </td>
+
+                        {/* garments out */}
+                        <td className={tdBase}>
+                          {s.exitGarmentCount !== null && s.exitGarmentCount !== undefined
+                            ? `${String(s.exitGarmentCount).padStart(2, "0")} garments`
+                            : "—"}
+                        </td>
+
+                        {/* variance — red if positive (garments missing) */}
+                        {(() => {
+                          const diff =
+                            s.garmentCount !== null && s.exitGarmentCount !== null
+                              ? s.garmentCount - s.exitGarmentCount
+                              : null;
+                          const isVariance = diff !== null && diff > 0;
+                          return (
+                            <td className={`${tdBase} ${isVariance ? "text-red-600 font-bold" : ""}`}>
+                              {diff === null ? "—" : diff === 0 ? "0" : `−${diff}`}
+                            </td>
+                          );
+                        })()}
 
                         {/* checkout attendant — red if completed alert */}
                         <td className={`${tdBase} ${rowChecked && s.checkoutAttendantId ? "text-red-600 font-semibold" : ""}`}>

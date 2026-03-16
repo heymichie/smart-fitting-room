@@ -5,9 +5,11 @@ const BAR_COUNT = 24;
 const STUN = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
 interface AlertModalProps {
-  roomId:   string;
-  roomName: string;
-  onIgnore: () => void;
+  roomId:     string;
+  roomName:   string;
+  branchCode: string;
+  roomDbId:   number;
+  onIgnore:   () => void;
 }
 
 type CallState = "idle" | "connecting" | "active" | "ended";
@@ -57,7 +59,7 @@ function WaveViz({ bars, active, color }: { bars: number[]; active: boolean; col
 }
 
 function useAnalyser(stream: MediaStream | null): number[] {
-  const [bars, setBars]         = useState<number[]>(new Array(BAR_COUNT).fill(0.06));
+  const [bars, setBars]             = useState<number[]>(new Array(BAR_COUNT).fill(0.06));
   const [trackCount, setTrackCount] = useState(0);
   const animRef = useRef<number | null>(null);
   const ctxRef  = useRef<AudioContext | null>(null);
@@ -101,17 +103,94 @@ function useAnalyser(stream: MediaStream | null): number[] {
   return bars;
 }
 
-export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalProps) {
+export default function AlertModal({ roomId, roomName, branchCode, roomDbId, onIgnore }: AlertModalProps) {
   const [callState, setCallState] = useState<CallState>("idle");
   const [localStream,  setLocalStream]  = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
 
-  const pcRef    = useRef<RTCPeerConnection | null>(null);
-  const sseRef   = useRef<EventSource | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pcRef            = useRef<RTCPeerConnection | null>(null);
+  const sseRef           = useRef<EventSource | null>(null);
+  const audioRef         = useRef<HTMLAudioElement | null>(null);
+  const mediaRecRef      = useRef<MediaRecorder | null>(null);
+  const chunksRef        = useRef<Blob[]>([]);
+  const callStartRef     = useRef<Date | null>(null);
+  const alertTimeRef     = useRef<string>(new Date().toISOString());
+  const mixCtxRef        = useRef<AudioContext | null>(null);
 
   const localBars  = useAnalyser(localStream);
   const remoteBars = useAnalyser(remoteStream);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") {
+      mediaRecRef.current.stop();
+    }
+  }, []);
+
+  const uploadRecording = useCallback(async (blob: Blob, durationSec: number) => {
+    try {
+      setUploadStatus("uploading");
+      const form = new FormData();
+      form.append("audio",           blob, `call_${roomId}_${Date.now()}.webm`);
+      form.append("branchCode",      branchCode);
+      form.append("fittingRoomId",   String(roomDbId));
+      form.append("fittingRoomName", roomName);
+      form.append("alertTime",       alertTimeRef.current);
+      form.append("durationSec",     String(Math.round(durationSec)));
+      form.append("source",          "supervisor-call");
+
+      const res = await fetch(`${API_BASE}/voice-recordings/upload`, { method: "POST", body: form });
+      setUploadStatus(res.ok ? "done" : "error");
+    } catch {
+      setUploadStatus("error");
+    }
+  }, [roomId, roomName, branchCode, roomDbId]);
+
+  const startRecording = useCallback((local: MediaStream, remote: MediaStream) => {
+    try {
+      const ctx  = new AudioContext();
+      mixCtxRef.current = ctx;
+      const dest = ctx.createMediaStreamDestination();
+
+      const connectStream = (s: MediaStream) => {
+        if (s.getAudioTracks().length > 0) {
+          ctx.createMediaStreamSource(s).connect(dest);
+        } else {
+          s.addEventListener("addtrack", () => {
+            if (s.getAudioTracks().length > 0) {
+              ctx.createMediaStreamSource(s).connect(dest);
+            }
+          });
+        }
+      };
+
+      connectStream(local);
+      connectStream(remote);
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+
+      const rec = new MediaRecorder(dest.stream, { mimeType });
+      mediaRecRef.current = rec;
+      chunksRef.current   = [];
+      callStartRef.current = new Date();
+
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const durationSec = callStartRef.current
+          ? (Date.now() - callStartRef.current.getTime()) / 1000
+          : 0;
+        if (blob.size > 0) uploadRecording(blob, durationSec);
+        if (mixCtxRef.current) { mixCtxRef.current.close(); mixCtxRef.current = null; }
+      };
+
+      rec.start(1000);
+    } catch (err) {
+      console.warn("Recording not available:", err);
+    }
+  }, [uploadRecording]);
 
   const cleanup = useCallback(() => {
     sseRef.current?.close();
@@ -125,13 +204,16 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
   }, [localStream]);
 
   const endCall = useCallback(async () => {
+    stopRecording();
     try { await fetch(`${API_BASE}/voice-call/end/${encodeURIComponent(roomId)}`, { method: "POST" }); } catch {}
     cleanup();
     setCallState("idle");
-  }, [roomId, cleanup]);
+  }, [roomId, cleanup, stopRecording]);
 
   const startCall = async () => {
+    alertTimeRef.current = new Date().toISOString();
     setCallState("connecting");
+    setUploadStatus("idle");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       setLocalStream(stream);
@@ -158,7 +240,10 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === "connected") setCallState("active");
+        if (pc.connectionState === "connected") {
+          setCallState("active");
+          startRecording(stream, remoteMS);
+        }
         if (pc.connectionState === "disconnected" || pc.connectionState === "failed") endCall();
       };
 
@@ -169,13 +254,14 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
         const answer = JSON.parse((e as MessageEvent).data);
         if (pc.signalingState !== "stable") await pc.setRemoteDescription(answer);
         setCallState("active");
+        startRecording(stream, remoteMS);
       });
 
       sse.addEventListener("ice", async (e) => {
         try { await pc.addIceCandidate(JSON.parse((e as MessageEvent).data)); } catch {}
       });
 
-      sse.addEventListener("end", () => { cleanup(); setCallState("ended"); });
+      sse.addEventListener("end", () => { stopRecording(); cleanup(); setCallState("ended"); });
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -194,9 +280,9 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
 
   const handleIgnore = () => { cleanup(); onIgnore(); };
 
-  useEffect(() => () => cleanup(), []);
+  useEffect(() => () => { stopRecording(); cleanup(); }, []);
 
-  const isLive = callState === "active";
+  const isLive       = callState === "active";
   const isConnecting = callState === "connecting";
 
   return (
@@ -204,7 +290,6 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
       <div className="rounded-3xl flex flex-col items-center py-10 px-10 gap-4 text-center"
         style={{ backgroundColor: "#2e5096", width: "420px", maxWidth: "93vw" }}>
 
-        {/* Title */}
         <h1 className="text-white font-extrabold uppercase leading-tight tracking-wide"
           style={{ fontSize: "clamp(2.2rem, 7vw, 3rem)", textShadow: "1px 1px 0 rgba(255,255,255,0.15), 2px 4px 8px rgba(0,0,0,0.45)" }}>
           FITTING ROOM ALERT!
@@ -212,7 +297,6 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
 
         <p className="text-white/90 text-lg font-medium">Location: {roomName}</p>
 
-        {/* Call status */}
         {callState !== "idle" && (
           <p className="text-white/70 text-sm tracking-wide">
             {isConnecting && "Calling fitting room…"}
@@ -221,7 +305,13 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
           </p>
         )}
 
-        {/* Wave visualisers */}
+        {uploadStatus === "uploading" && (
+          <p className="text-white/50 text-xs">Saving call recording…</p>
+        )}
+        {uploadStatus === "done" && (
+          <p className="text-white/50 text-xs">Call recording saved to reports.</p>
+        )}
+
         <div className="w-full space-y-2 mt-1">
           <div className="flex items-center gap-2">
             <span className="text-white/50 text-xs w-16 text-right shrink-0">You</span>
@@ -233,7 +323,6 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-4 w-full mt-2">
           {callState === "idle" || callState === "ended" ? (
             <button onClick={startCall}
@@ -259,7 +348,6 @@ export default function AlertModal({ roomId, roomName, onIgnore }: AlertModalPro
           </button>
         </div>
 
-        {/* Panel link helper */}
         {(callState === "idle" || callState === "ended") && (
           <p className="text-white/40 text-xs mt-1">
             Fitting room device: open <span className="font-mono">/fitting-room-panel?roomId={roomId}</span>

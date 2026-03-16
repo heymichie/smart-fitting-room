@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { eq, and, asc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { fittingRoomSessionsTable } from "@workspace/db/schema";
+import { fittingRoomSessionsTable, fittingRoomsTable } from "@workspace/db/schema";
+import { broadcastRoomEvent } from "../lib/roomEvents";
 
 const router: IRouter = Router();
 
@@ -83,7 +84,7 @@ router.patch("/fitting-room-sessions/:id", async (req, res): Promise<void> => {
     "mainEntranceEntryTime", "customerId", "garmentCount", "productCodesIn",
     "fittingRoomName", "fittingRoomEntryTime", "fittingRoomExitTime", "durationMinutes",
     "alertTime", "alertAttendantId", "mainEntranceExitTime", "mainEntranceAlertTime",
-    "productCodesOut", "checkoutAttendantId", "hasAlert", "isActive",
+    "productCodesOut", "exitGarmentCount", "checkoutAttendantId", "hasAlert", "isActive",
   ];
 
   const updates: Record<string, unknown> = {};
@@ -101,6 +102,50 @@ router.patch("/fitting-room-sessions/:id", async (req, res): Promise<void> => {
     .returning();
 
   if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+  // Variance alert: if exit count is less than entry count, set room to alert
+  const exitCount  = session.exitGarmentCount;
+  const entryCount = session.garmentCount;
+  if (
+    exitCount !== null && exitCount !== undefined &&
+    entryCount !== null && entryCount !== undefined &&
+    exitCount < entryCount &&
+    session.fittingRoomName
+  ) {
+    const [room] = await db
+      .select()
+      .from(fittingRoomsTable)
+      .where(
+        eq(fittingRoomsTable.branchCode, session.branchCode)
+      )
+      .then(rows => rows.filter(r => r.name === session.fittingRoomName))
+      .then(rows => [rows[0]]);
+
+    if (room) {
+      const now = new Date();
+      const [updatedRoom] = await db
+        .update(fittingRoomsTable)
+        .set({ status: "alert", alertSince: now, updatedAt: now })
+        .where(eq(fittingRoomsTable.id, room.id))
+        .returning();
+
+      if (updatedRoom) {
+        broadcastRoomEvent(session.branchCode, "status-update", {
+          id:           updatedRoom.id,
+          roomId:       updatedRoom.roomId,
+          name:         updatedRoom.name,
+          status:       updatedRoom.status,
+          occupiedSince: updatedRoom.occupiedSince,
+          alertSince:   updatedRoom.alertSince,
+          lastOccupiedAt: updatedRoom.lastOccupiedAt,
+          garmentCount: updatedRoom.garmentCount,
+          source:       "variance-alert",
+          varianceAlert: true,
+          timestamp:    now.toISOString(),
+        });
+      }
+    }
+  }
 
   res.json(session);
 });

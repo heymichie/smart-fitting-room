@@ -254,7 +254,13 @@ export default function FittingRoomsPage() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#1e3a6e" }}>
 
       {activeAlert && (
-        <AlertModal roomId={activeAlert.roomId} roomName={activeAlert.name} onIgnore={handleIgnore} />
+        <AlertModal
+          roomId={activeAlert.roomId}
+          roomName={activeAlert.name}
+          branchCode={activeAlert.branchCode}
+          roomDbId={activeAlert.id}
+          onIgnore={handleIgnore}
+        />
       )}
 
       {/* Header */}
