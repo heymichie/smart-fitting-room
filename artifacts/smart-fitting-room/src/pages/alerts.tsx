@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/[^/]*$/, "") + "/api";
@@ -68,6 +68,11 @@ function fmtDate(iso: string) {
   } catch { return iso; }
 }
 
+const ArrowUp    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="18 15 12 9 6 15"/></svg>;
+const ArrowDown  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="6 9 12 15 18 9"/></svg>;
+const ArrowLeft  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="15 18 9 12 15 6"/></svg>;
+const ArrowRight = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="9 18 15 12 9 6"/></svg>;
+
 const HangerIcon = () => (
   <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 shrink-0">
     <path d="M36 9C32.134 9 29 12.134 29 16C29 19.076 30.981 21.685 33.749 22.643C34.065 23.131 34.463 23.683 34.966 24.344C29.244 26.685 9 35.5 9 46H63C63 35.5 42.756 26.685 37.034 24.344C37.537 23.683 37.935 23.131 38.251 22.643C41.019 21.685 43 19.076 43 16C43 12.134 39.866 9 36 9Z"
@@ -89,6 +94,18 @@ export default function AlertsPage() {
   const [sessions, setSessions] = useState<AlertSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCctv, setExpandedCctv] = useState<number | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const scroll = useCallback((dir: "up" | "down" | "left" | "right") => {
+    const el = tableRef.current;
+    if (!el) return;
+    const step = 180;
+    el.scrollBy({
+      top:      dir === "down" ? step : dir === "up" ? -step : 0,
+      left:     dir === "right" ? step : dir === "left" ? -step : 0,
+      behavior: "smooth",
+    });
+  }, []);
 
   useEffect(() => {
     const token   = localStorage.getItem("sfr_user_token");
@@ -124,14 +141,18 @@ export default function AlertsPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-6 pb-10 overflow-x-auto">
+      <main className="flex-1 px-6 pb-10 relative">
         {loading ? (
           <div className="flex items-center justify-center mt-20 text-white/60 text-sm">Loading alerts…</div>
         ) : sessions.length === 0 ? (
           <div className="flex items-center justify-center mt-20 text-white/60 text-sm">No alerts recorded yet.</div>
         ) : (
-          <div className="rounded-2xl overflow-hidden mt-4" style={{ backgroundColor: "#d8dde8" }}>
-            <table className="w-full text-sm">
+          <div
+            ref={tableRef}
+            className="rounded-2xl overflow-auto mt-4"
+            style={{ backgroundColor: "#d8dde8", maxHeight: "calc(100vh - 160px)" }}
+          >
+            <table className="text-sm" style={{ minWidth: 900 }}>
               <thead>
                 <tr style={{ backgroundColor: "#b8c2d8" }}>
                   <th className="text-left px-4 py-3 font-bold text-gray-800">Date</th>
@@ -221,6 +242,54 @@ export default function AlertsPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Floating scroll d-pad */}
+        {!loading && sessions.length > 0 && (
+          <div
+            className="fixed flex flex-col items-center gap-1"
+            style={{ bottom: 28, right: 28, zIndex: 50 }}
+          >
+            {/* Up */}
+            <button
+              onClick={() => scroll("up")}
+              className="flex items-center justify-center rounded-xl text-white transition hover:brightness-110 active:scale-95 shadow-lg"
+              style={{ width: 42, height: 42, backgroundColor: "rgba(30,58,110,0.92)", border: "1px solid rgba(255,255,255,0.25)" }}
+              aria-label="Scroll up"
+            >
+              <ArrowUp />
+            </button>
+
+            {/* Middle row: Left + Right */}
+            <div className="flex gap-1">
+              <button
+                onClick={() => scroll("left")}
+                className="flex items-center justify-center rounded-xl text-white transition hover:brightness-110 active:scale-95 shadow-lg"
+                style={{ width: 42, height: 42, backgroundColor: "rgba(30,58,110,0.92)", border: "1px solid rgba(255,255,255,0.25)" }}
+                aria-label="Scroll left"
+              >
+                <ArrowLeft />
+              </button>
+              <button
+                onClick={() => scroll("right")}
+                className="flex items-center justify-center rounded-xl text-white transition hover:brightness-110 active:scale-95 shadow-lg"
+                style={{ width: 42, height: 42, backgroundColor: "rgba(30,58,110,0.92)", border: "1px solid rgba(255,255,255,0.25)" }}
+                aria-label="Scroll right"
+              >
+                <ArrowRight />
+              </button>
+            </div>
+
+            {/* Down */}
+            <button
+              onClick={() => scroll("down")}
+              className="flex items-center justify-center rounded-xl text-white transition hover:brightness-110 active:scale-95 shadow-lg"
+              style={{ width: 42, height: 42, backgroundColor: "rgba(30,58,110,0.92)", border: "1px solid rgba(255,255,255,0.25)" }}
+              aria-label="Scroll down"
+            >
+              <ArrowDown />
+            </button>
           </div>
         )}
       </main>
