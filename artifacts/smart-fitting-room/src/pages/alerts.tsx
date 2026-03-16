@@ -157,7 +157,12 @@ export default function AlertsPage() {
                   const rowBg       = idx % 2 === 0 ? "#d8dde8" : "#cdd3df";
 
                   return (
-                    <tr key={s.id} style={{ backgroundColor: rowBg }}>
+                    <tr
+                      key={s.id}
+                      style={{ backgroundColor: rowBg, cursor: "pointer" }}
+                      onClick={() => setLocation(`/alert-detail?id=${s.id}`)}
+                      className="hover:brightness-95 transition"
+                    >
                       <td className="px-4 py-3 text-gray-700">{fmtDate(s.createdAt)}</td>
                       <td className="px-4 py-3 font-semibold text-gray-900">{roomName}</td>
                       <td className="px-4 py-3 text-gray-700">
@@ -198,7 +203,7 @@ export default function AlertsPage() {
                         {s.cctvClipUrl ? (
                           <div>
                             <button
-                              onClick={() => setExpandedCctv(expandedCctv === s.id ? null : s.id)}
+                              onClick={(e) => { e.stopPropagation(); setExpandedCctv(expandedCctv === s.id ? null : s.id); }}
                               className="text-xs text-blue-700 underline font-semibold hover:text-blue-900"
                             >
                               {expandedCctv === s.id ? "Hide" : "View"} footage

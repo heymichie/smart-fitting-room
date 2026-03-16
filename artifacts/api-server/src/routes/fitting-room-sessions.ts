@@ -151,6 +151,21 @@ router.patch("/fitting-room-sessions/:id", async (req, res): Promise<void> => {
   res.json(session);
 });
 
+/* ─── GET /api/alerts/:id ─────────────────────────────────────────────────── */
+router.get("/alerts/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [session] = await db
+    .select()
+    .from(fittingRoomSessionsTable)
+    .where(eq(fittingRoomSessionsTable.id, id))
+    .limit(1);
+
+  if (!session) { res.status(404).json({ error: "Not found" }); return; }
+  res.json(session);
+});
+
 /* ─── GET /api/alerts ─────────────────────────────────────────────────────── */
 /**
  * Returns all sessions that have either a fitting-room alert or a main

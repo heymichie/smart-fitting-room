@@ -22,6 +22,7 @@ import FittingRoomDetails from "@/pages/fitting-room-details";
 import FittingRoomSingle from "@/pages/fitting-room-single";
 import FittingRoomPanel from "@/pages/fitting-room-panel";
 import AlertsPage from "@/pages/alerts";
+import AlertDetailPage from "@/pages/alert-detail";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -56,6 +57,7 @@ function Router() {
       <Route path="/fitting-room-single" component={FittingRoomSingle} />
       <Route path="/fitting-room-panel" component={FittingRoomPanel} />
       <Route path="/alerts" component={AlertsPage} />
+      <Route path="/alert-detail" component={AlertDetailPage} />
 
       {/* Fallback 404 */}
       <Route component={NotFound} />
