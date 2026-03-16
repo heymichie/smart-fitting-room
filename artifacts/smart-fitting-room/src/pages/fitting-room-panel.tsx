@@ -52,21 +52,31 @@ function WaveViz({ bars, active, color }: { bars: number[]; active: boolean; col
 }
 
 function useAnalyser(stream: MediaStream | null): number[] {
-  const [bars, setBars] = useState<number[]>(new Array(BAR_COUNT).fill(0.06));
+  const [bars, setBars]             = useState<number[]>(new Array(BAR_COUNT).fill(0.06));
+  const [trackCount, setTrackCount] = useState(0);
   const animRef = useRef<number | null>(null);
   const ctxRef  = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    if (!stream) {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-      if (ctxRef.current) { ctxRef.current.close(); ctxRef.current = null; }
+    if (!stream) { setTrackCount(0); return; }
+    const onAdd = () => setTrackCount(c => c + 1);
+    stream.addEventListener("addtrack", onAdd as EventListener);
+    setTrackCount(stream.getAudioTracks().length);
+    return () => stream.removeEventListener("addtrack", onAdd as EventListener);
+  }, [stream]);
+
+  useEffect(() => {
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    if (ctxRef.current) { ctxRef.current.close(); ctxRef.current = null; }
+
+    if (!stream || stream.getAudioTracks().length === 0) {
       setBars(new Array(BAR_COUNT).fill(0.06));
       return;
     }
-    const ctx  = new AudioContext();
+    const ctx = new AudioContext();
     ctxRef.current = ctx;
-    const src  = ctx.createMediaStreamSource(stream);
-    const ana  = ctx.createAnalyser();
+    const src = ctx.createMediaStreamSource(stream);
+    const ana = ctx.createAnalyser();
     ana.fftSize = 128;
     ana.smoothingTimeConstant = 0.78;
     src.connect(ana);
@@ -81,7 +91,8 @@ function useAnalyser(stream: MediaStream | null): number[] {
       if (animRef.current) cancelAnimationFrame(animRef.current);
       ctx.close();
     };
-  }, [stream]);
+  }, [stream, trackCount]);
+
   return bars;
 }
 
