@@ -192,7 +192,8 @@ router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
         quantityOk,
         codesOk,
       };
-      sessionUpdates.hasAlert = true;
+      sessionUpdates.hasAlert  = true;
+      sessionUpdates.alertTime = timeStr;
     } else {
       // Perfect match — door opens, session closes
       doorOpen = true;

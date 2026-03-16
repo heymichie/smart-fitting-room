@@ -219,6 +219,7 @@ export default function FittingRoomsPage() {
     es.addEventListener("status-update", (e) => {
       const payload = JSON.parse((e as MessageEvent).data);
       setRooms(prev => {
+        const prevRoom = prev.find(r => r.id === payload.id);
         const updated = prev.map(r =>
           r.id === payload.id
             ? {
@@ -231,6 +232,11 @@ export default function FittingRoomsPage() {
               }
             : r
         );
+        // If a room just transitioned INTO alert (was not alert before), clear its
+        // dismissed status so the modal fires again for this new alert event.
+        if (payload.status === "alert" && prevRoom && prevRoom.status !== "alert") {
+          dismissedRef.current.delete(payload.roomId);
+        }
         triggerAlert(updated);
         return updated;
       });
