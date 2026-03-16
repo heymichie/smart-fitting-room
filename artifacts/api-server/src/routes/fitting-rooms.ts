@@ -70,7 +70,9 @@ router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const { status, source, garmentCount } = req.body;
+  // garmentCount  = garments scanned in (entry) or garments scanned out (exit)
+  // exitGarmentCount = explicit exit scan count (takes priority over garmentCount on exit)
+  const { status, source, garmentCount, exitGarmentCount: bodyExitCount } = req.body;
   const valid = ["available", "occupied", "alert"];
   if (!status || !valid.includes(status)) {
     res.status(400).json({ error: `status must be one of: ${valid.join(", ")}` });
@@ -80,7 +82,92 @@ router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
   const [existing] = await db.select().from(fittingRoomsTable).where(eq(fittingRoomsTable.id, id)).limit(1);
   if (!existing) { res.status(404).json({ error: "Room not found" }); return; }
 
-  const updates = buildStatusUpdate(existing, status, garmentCount);
+  // Resolve exit count: explicit field takes priority, else use garmentCount on available push
+  const exitCount: number | undefined =
+    bodyExitCount !== undefined
+      ? Number(bodyExitCount)
+      : status === "available" && garmentCount !== undefined
+        ? Number(garmentCount)
+        : undefined;
+
+  // Find the most recent active session for this room
+  const [activeSession] = await db
+    .select()
+    .from(fittingRoomSessionsTable)
+    .where(
+      and(
+        eq(fittingRoomSessionsTable.branchCode, existing.branchCode),
+        eq(fittingRoomSessionsTable.fittingRoomName, existing.name),
+        eq(fittingRoomSessionsTable.isActive, true),
+      )
+    )
+    .orderBy(desc(fittingRoomSessionsTable.createdAt))
+    .limit(1);
+
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
+  // ── ENTRY scan ────────────────────────────────────────────────────────────
+  if (status === "occupied" && activeSession) {
+    const sessionUpdates: Record<string, unknown> = { fittingRoomEntryTime: timeStr };
+    if (garmentCount !== undefined) sessionUpdates.garmentCount = Number(garmentCount);
+    await db
+      .update(fittingRoomSessionsTable)
+      .set(sessionUpdates)
+      .where(eq(fittingRoomSessionsTable.id, activeSession.id));
+  }
+
+  // ── EXIT scan ─────────────────────────────────────────────────────────────
+  let finalStatus = status;
+  let isVarianceAlert = false;
+
+  if (status === "available" && exitCount !== undefined && activeSession) {
+    const sessionUpdates: Record<string, unknown> = {
+      exitGarmentCount:    exitCount,
+      fittingRoomExitTime: timeStr,
+    };
+
+    // Variance check: fewer garments out than in → alert instead of available
+    const entryCount = activeSession.garmentCount;
+    if (entryCount !== null && exitCount < entryCount) {
+      finalStatus     = "alert";
+      isVarianceAlert = true;
+    } else {
+      // Clean exit — close the session
+      sessionUpdates.isActive       = false;
+      sessionUpdates.durationMinutes = activeSession.fittingRoomEntryTime
+        ? (() => {
+            const [hh, mm] = [
+              parseInt(activeSession.fittingRoomEntryTime.slice(0, -2), 10),
+              parseInt(activeSession.fittingRoomEntryTime.slice(-2),    10),
+            ];
+            const entry = new Date(now);
+            entry.setHours(hh, mm, 0, 0);
+            return Math.max(0, Math.round((now.getTime() - entry.getTime()) / 60000));
+          })()
+        : null;
+    }
+
+    await db
+      .update(fittingRoomSessionsTable)
+      .set(sessionUpdates)
+      .where(eq(fittingRoomSessionsTable.id, activeSession.id));
+  }
+
+  // Pass garmentCount only for entry; on a clean exit clear it; on variance alert keep it
+  const roomGarmentCount = finalStatus === "occupied"
+    ? garmentCount
+    : finalStatus === "alert"
+      ? undefined          // keep existing room garmentCount (entry count)
+      : undefined;         // available → clear via buildStatusUpdate
+
+  const updates = buildStatusUpdate(existing, finalStatus, roomGarmentCount);
+
+  // For variance alerts keep the room's existing garmentCount so the card shows entry count
+  if (isVarianceAlert) {
+    delete (updates as Record<string, unknown>).garmentCount;
+  }
+
   const [room] = await db.update(fittingRoomsTable).set(updates).where(eq(fittingRoomsTable.id, id)).returning();
 
   broadcast(room.branchCode, "status-update", {
@@ -93,10 +180,11 @@ router.post("/fitting-rooms/:id/status", async (req, res): Promise<void> => {
     lastOccupiedAt: room.lastOccupiedAt,
     garmentCount:   room.garmentCount,
     source:         source ?? "iot",
-    timestamp:      new Date().toISOString(),
+    varianceAlert:  isVarianceAlert,
+    timestamp:      now.toISOString(),
   });
 
-  res.json(room);
+  res.json({ ...room, varianceAlert: isVarianceAlert });
 });
 
 /* ─── Branches list ──────────────────────────────────────────────────────── */
